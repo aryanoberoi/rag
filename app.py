@@ -1,5 +1,5 @@
 import streamlit as st
-
+from langchain_community.chat_models import ChatOllama
 # Add this code before import ib_insync:
 #ERROR
 import asyncio
@@ -30,9 +30,9 @@ from langchain_core.messages import AIMessage,HumanMessage
 from langchain_core.output_parsers import StrOutputParser
 
 
-load_dotenv()
-os.getenv("GOOGLE_API_KEY")
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+# load_dotenv()
+# os.getenv("GOOGLE_API_KEY")
+# genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 
 def get_pdf_text(pdf_docs):
@@ -59,13 +59,13 @@ def get_vector_store(text_chunks):
 def get_conversational_chain():
 #improve
     prompt_template = """
-    Answer the question as detailed as possible from the provided context,and keep chat history in mind and make sure to provide all the details, but kindly go through the chat history also\n\n
+    Answer the question as detailed as possible from the provided context,and keep chat history in mind and make sure to provide all the details, dont give wrong information give answer from context only if that question is not related to context simply respond out of context ,but kindly go through the chat history also\n\n
     Context:\n {context}?\n
     Question: \n{question}\n
     Answer:
     """
 
-    model = ChatGoogleGenerativeAI(model="gemini-pro",temperature=0.3)
+    model = ChatGoogleGenerativeAI(model="gemini-pro")
     prompt = PromptTemplate(template = prompt_template, input_variables = ["context", "question"])
     chain = load_qa_chain(model, chain_type="stuff", prompt=prompt)
 
@@ -95,8 +95,18 @@ def main():
         st.session_state.chat_history=[
             AIMessage(content="Hello! I'm a PDF assistant. Ask me anything about the documents"),
         ]
-    st.set_page_config("Chat PDF")
-    st.header("Chat with PDF using Gemini")
+    st.set_page_config("Chat PDF",initial_sidebar_state="expanded")
+    st.title("Carnot Research")
+    st.title("Chat with PDF")
+    st.subheader("Upload Your Documents")
+    pdf_docs = st.file_uploader("Upload your PDF Files and Click on the Submit & Process Button", accept_multiple_files=True)
+    if st.button("Submit & Process"):
+        with st.spinner("Processing..."):
+            raw_text = get_pdf_text(pdf_docs)
+            text_chunks = get_text_chunks(raw_text)
+            get_vector_store(text_chunks)
+            st.success("Done")
+
     for message in st.session_state.chat_history:
         if isinstance(message,AIMessage):
             with st.chat_message("AI"):
@@ -129,17 +139,10 @@ def main():
             st.session_state.chat_history.append(AIMessage(content=res))
 
         
-    
-    with st.sidebar:
-        st.title("Menu:")
-        pdf_docs = st.file_uploader("Upload your PDF Files and Click on the Submit & Process Button", accept_multiple_files=True)
-        if st.button("Submit & Process"):
-            with st.spinner("Processing..."):
-                raw_text = get_pdf_text(pdf_docs)
-                text_chunks = get_text_chunks(raw_text)
-                get_vector_store(text_chunks)
-                st.success("Done")
 
+
+if __name__ == "__main__":
+    main()
 
 
 if __name__ == "__main__":
