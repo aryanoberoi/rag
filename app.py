@@ -116,17 +116,20 @@ def main():
     user_query = st.chat_input("Type a message...")
 
     if user_query and user_query.strip() != "":
-        st.session_state.chat_history.append(HumanMessage(content=user_query))
+        if pdf_docs:
+            st.session_state.chat_history.append(HumanMessage(content=user_query))
 
-        with st.chat_message("Human"):
-            st.markdown(user_query)
+            with st.chat_message("Human"):
+                st.markdown(user_query)
 
-        with st.chat_message("AI"):
-            response = user_input(user_query)
-            res = response["output_text"]
-            st.markdown(res)
-            st.session_state.chat_history.append(AIMessage(content=res))
-
+            with st.chat_message("AI"):
+                response = user_input(user_query)
+                res = response["output_text"]
+                st.markdown(res)
+                st.session_state.chat_history.append(AIMessage(content=res))
+        else:
+            st.error("No files uploaded. Please upload one or more PDF files.")
+            
 if __name__ == "__main__":
     try:
         main()
