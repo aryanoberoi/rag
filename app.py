@@ -1,11 +1,13 @@
 import streamlit as st
 import asyncio
 from PyPDF2 import PdfReader
+from docx import Document
+import docx2txt
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 import os
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 import google.generativeai as genai
-from langchain.vectorstores import FAISS
+from langchain.vectorstores.faiss import FAISS
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.chains.question_answering import load_qa_chain
 from langchain.prompts import PromptTemplate
@@ -29,12 +31,40 @@ def get_or_create_eventloop():
 
 get_or_create_eventloop()
 
-def get_pdf_text(pdf_docs):
+def get_text_from_doc(doc_file):
+    document = Document(doc_file)
+    return "\n".join([paragraph.text for paragraph in document.paragraphs])
+
+def get_text_from_docx(docx_file):
+    # Save the uploaded file to a temporary location to be processed by docx2txt
+    temp_file_path = "temp.docx"
+    with open(temp_file_path, "wb") as f:
+        f.write(docx_file.getbuffer())
+    return docx2txt.process(temp_file_path)
+
+def get_text_from_txt(txt_file):
+    return txt_file.getvalue().decode("utf-8")
+
+def get_text_from_pdf(pdf_file):
     text = ""
-    for pdf in pdf_docs:
-        pdf_reader = PdfReader(pdf)
-        for page in pdf_reader.pages:
-            text += page.extract_text()
+    pdf_reader = PdfReader(pdf_file)
+    for page in pdf_reader.pages:
+        text += page.extract_text()
+    return text
+
+def get_text_from_files(files):
+    text = ""
+    for file in files:
+        if file.name.endswith(".pdf"):
+            text += get_text_from_pdf(file)
+        elif file.name.endswith(".doc"):
+            text += get_text_from_doc(file)
+        elif file.name.endswith(".docx"):
+            text += get_text_from_docx(file)
+        elif file.name.endswith(".txt"):
+            text += get_text_from_txt(file)
+        else:
+            st.error(f"Unsupported file type: {file.name}")
     return text
 
 def get_text_chunks(text):
@@ -62,7 +92,6 @@ def get_conversational_chain():
 
 def user_input(user_question):
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-    
     new_db = FAISS.load_local("faiss_index", embeddings, allow_dangerous_deserialization=True)
     docs = new_db.similarity_search(user_question)
     chain = get_conversational_chain()
@@ -70,7 +99,6 @@ def user_input(user_question):
     response = chain(
         {"input_documents": docs, "question": user_question}, StrOutputParser()
     )
-    
     return response
 
 def main():
@@ -78,32 +106,32 @@ def main():
         st.session_state.chat_history = [
             AIMessage(content="Hello! I'm a PDF assistant. Ask me anything about the documents"),
         ]
-    
+
     st.set_page_config(page_title="Chat PDF")
     st.title("Carnot Research")
     st.title("Chat with PDF")
     st.subheader("Upload Your Documents")
 
-    pdf_docs = st.file_uploader("Upload your PDF Files and Click on the Submit & Process Button", accept_multiple_files=True)
+    pdf_docs = st.file_uploader("Upload your PDF, DOC, DOCX, or TXT Files and Click on the Submit & Process Button", accept_multiple_files=True)
 
     if st.button("Submit & Process"):
         if pdf_docs:
-            valid_pdfs = True
+            valid_files = True
             for doc in pdf_docs:
-                if not doc.name.endswith(".pdf"):
-                    valid_pdfs = False
+                if not (doc.name.endswith(".pdf") or doc.name.endswith(".doc") or doc.name.endswith(".docx") or doc.name.endswith(".txt")):
+                    valid_files = False
                     break
 
-            if valid_pdfs:
+            if valid_files:
                 with st.spinner("Processing..."):
-                    raw_text = get_pdf_text(pdf_docs)
+                    raw_text = get_text_from_files(pdf_docs)
                     text_chunks = get_text_chunks(raw_text)
                     get_vector_store(text_chunks)
                     st.success("Done")
             else:
-                st.error("Please upload files in PDF format.")
+                st.error("Please upload files in PDF, DOC, DOCX, or TXT format.")
         else:
-            st.error("No files uploaded. Please upload one or more PDF files.")
+            st.error("No files uploaded. Please upload one or more documents.")
 
     for message in st.session_state.chat_history:
         if isinstance(message, AIMessage):
@@ -116,20 +144,17 @@ def main():
     user_query = st.chat_input("Type a message...")
 
     if user_query and user_query.strip() != "":
-        if pdf_docs:
-            st.session_state.chat_history.append(HumanMessage(content=user_query))
+        st.session_state.chat_history.append(HumanMessage(content=user_query))
 
-            with st.chat_message("Human"):
-                st.markdown(user_query)
+        with st.chat_message("Human"):
+            st.markdown(user_query)
 
-            with st.chat_message("AI"):
-                response = user_input(user_query)
-                res = response["output_text"]
-                st.markdown(res)
-                st.session_state.chat_history.append(AIMessage(content=res))
-        else:
-            st.error("No files uploaded. Please upload one or more PDF files.")
-            
+        with st.chat_message("AI"):
+            response = user_input(user_query)
+            res = response["output_text"]
+            st.markdown(res)
+            st.session_state.chat_history.append(AIMessage(content=res))
+
 if __name__ == "__main__":
     try:
         main()
