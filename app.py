@@ -104,7 +104,7 @@ def user_input(user_question):
 def main():
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = [
-            AIMessage(content="Hello! I'm a PDF assistant. Ask me anything about the documents"),
+            AIMessage(content="Hello! I'm a document assistant. Ask me anything about the documents"),
         ]
 
     st.set_page_config(page_title="Chat PDF")
