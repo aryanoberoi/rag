@@ -108,7 +108,7 @@ def main():
         ]
 
     st.set_page_config(page_title="Chat PDF")
-    st.title("Carnot Research")
+    st.header("Carnot Research")
     st.header("Chat with PDF")
     st.subheader("Upload Your Documents")
 
