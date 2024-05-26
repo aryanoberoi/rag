@@ -6,4 +6,8 @@ PyPDF2
 faiss-cpu
 langchain_google_genai
 chromadb
+ollama
+asyncio
 langchain_community
+python-docx 
+docx2txt
