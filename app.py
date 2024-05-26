@@ -14,7 +14,6 @@ from langchain.prompts import PromptTemplate
 from dotenv import load_dotenv
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.output_parsers import StrOutputParser
-import uuid
 
 # Ensure the environment variables are loaded
 load_dotenv()
@@ -37,12 +36,11 @@ def get_text_from_doc(doc_file):
     return "\n".join([paragraph.text for paragraph in document.paragraphs])
 
 def get_text_from_docx(docx_file):
-    temp_file_path = f"temp_{uuid.uuid4()}.docx"
+    # Save the uploaded file to a temporary location to be processed by docx2txt
+    temp_file_path = "temp.docx"
     with open(temp_file_path, "wb") as f:
         f.write(docx_file.getbuffer())
-    text = docx2txt.process(temp_file_path)
-    os.remove(temp_file_path)
-    return text
+    return docx2txt.process(temp_file_path)
 
 def get_text_from_txt(txt_file):
     return txt_file.getvalue().decode("utf-8")
@@ -92,9 +90,9 @@ def get_conversational_chain():
     chain = load_qa_chain(model, chain_type="stuff", prompt=prompt)
     return chain
 
-def user_input(session_id, user_question):
+def user_input(user_question):
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-    new_db = FAISS.load_local(f"faiss_index_{session_id}", embeddings, allow_dangerous_deserialization=True)
+    new_db = FAISS.load_local("faiss_index", embeddings, allow_dangerous_deserialization=True)
     docs = new_db.similarity_search(user_question)
     chain = get_conversational_chain()
 
@@ -104,11 +102,6 @@ def user_input(session_id, user_question):
     return response
 
 def main():
-    if "session_id" not in st.session_state:
-        st.session_state.session_id = str(uuid.uuid4())
-    
-    session_id = st.session_state.session_id
-
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = [
             AIMessage(content="Hello! I'm a PDF assistant. Ask me anything about the documents"),
@@ -133,7 +126,7 @@ def main():
                 with st.spinner("Processing..."):
                     raw_text = get_text_from_files(pdf_docs)
                     text_chunks = get_text_chunks(raw_text)
-                    get_vector_store(session_id, text_chunks)
+                    get_vector_store(text_chunks)
                     st.success("Done")
             else:
                 st.error("Please upload files in PDF, DOC, DOCX, or TXT format.")
@@ -157,7 +150,7 @@ def main():
             st.markdown(user_query)
 
         with st.chat_message("AI"):
-            response = user_input(session_id, user_query)
+            response = user_input(user_query)
             res = response["output_text"]
             st.markdown(res)
             st.session_state.chat_history.append(AIMessage(content=res))
@@ -167,3 +160,4 @@ if __name__ == "__main__":
         main()
     except Exception as e :
         st.markdown(e)
+
