@@ -125,6 +125,7 @@ def user_input(user_question):
 
 def main():
     # Retrieve or generate a unique session ID using cookies
+    st.set_page_config(page_title="Chat Docs and URL")
     if "session_id" not in cookies:
         cookies["session_id"] = str(uuid.uuid4())
         cookies.save()
@@ -136,8 +137,7 @@ def main():
         st.session_state[session_id] = {
             "chat_history": [AIMessage(content="Hello! I'm a document assistant. Ask me anything about the documents or the content from the URL.")],
         }
-
-    st.set_page_config(page_title="Chat Docs and URL")
+        
 
     st.markdown("""
         <style>
