@@ -107,10 +107,22 @@ def main():
             AIMessage(content="Hello! I'm a document assistant. Ask me anything about the documents"),
         ]
 
-    st.set_page_config(page_title="Chat PDF")
-    st.markdown("<h2 style='text-align: center;'>Carnot Research</h2>", unsafe_allow_html=True)
-    st.subheader("Chat with your Documents")
-    st.subheader("Upload Documents")
+    st.markdown("""
+    <style>
+        .center-text {
+            text-align: center;
+            margin-top: 50px; /* Adjust this value to push the elements down */
+        }
+        .reduce-gap {
+            margin-bottom: 5px; /* Adjust this value to reduce the gap between elements */
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# Using custom CSS classes for styling
+    st.markdown("<h2 class='center-text'>Carnot Research</h2>", unsafe_allow_html=True)
+    st.markdown("<h4 class='center-text reduce-gap'>Chat with your Documents</h4>", unsafe_allow_html=True)
+    st.markdown("<h4 class='center-text reduce-gap'>Upload Documents</h4>", unsafe_allow_html=True)
 
     pdf_docs = st.file_uploader("Upload your PDF, DOC, DOCX, or TXT Files and Click on the Submit & Process Button", accept_multiple_files=True)
 
