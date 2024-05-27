@@ -111,10 +111,10 @@ def main():
     <style>
         .center-text {
             text-align: center;
-            margin-top: 50px; /* Adjust this value to push the elements down */
+            margin-top: 5px; /* Adjust this value to push the elements down */
         }
         .reduce-gap {
-            margin-bottom: 50px; /* Adjust this value to reduce the gap between elements */
+            margin-bottom: 1px; /* Adjust this value to reduce the gap between elements */
         }
     </style>
 """, unsafe_allow_html=True)
