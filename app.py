@@ -109,9 +109,30 @@ def main():
 
     st.set_page_config(page_title="Chat PDF")
     
-    st.header("Carnot Research")
-    st.markdown("Chat with documents")
-    st.subheader("Upload your Documents")
+    st.markdown("""
+        <style>
+            .main-header {
+                font-size: 24px; /* Adjust the size to fit the screen */
+                text-align: center;
+                margin-top: 20px; /* Adjust the top margin if needed */
+            }
+            .sub-header {
+                font-size: 18px; /* Adjust the size to fit the screen */
+                text-align: center;
+                margin-top: 10px; /* Adjust the top margin if needed */
+            }
+            .upload-header {
+                font-size: 16px; /* Adjust the size to fit the screen */
+                text-align: center;
+                margin-top: 5px; /* Adjust the top margin if needed */
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # Apply the custom CSS classes to the headers
+    st.markdown("<h1 class='main-header'>Carnot Research</h1>", unsafe_allow_html=True)
+    st.markdown("<h2 class='sub-header'>Chat with documents</h2>", unsafe_allow_html=True)
+    st.markdown("<h3 class='upload-header'>Upload your Documents</h3>", unsafe_allow_html=True)
 
     pdf_docs = st.file_uploader("Upload your PDF, DOC, DOCX, or TXT Files and Click on the Submit & Process Button", accept_multiple_files=True)
 
