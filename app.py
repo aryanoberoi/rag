@@ -19,6 +19,9 @@ from bs4 import BeautifulSoup
 import uuid
 from streamlit_cookies_manager import EncryptedCookieManager
 
+# Set the page configuration
+st.set_page_config(page_title="Chat Docs and URL")
+
 # Ensure the environment variables are loaded
 load_dotenv()
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
@@ -43,10 +46,12 @@ def get_or_create_eventloop():
             return asyncio.get_event_loop()
 get_or_create_eventloop()
 
+@st.cache_data
 def get_text_from_doc(doc_file):
     document = Document(doc_file)
     return "\n".join([paragraph.text for paragraph in document.paragraphs])
 
+@st.cache_data
 def get_text_from_docx(docx_file):
     # Save the uploaded file to a temporary location to be processed by docx2txt
     temp_file_path = "temp.docx"
@@ -54,9 +59,11 @@ def get_text_from_docx(docx_file):
         f.write(docx_file.getbuffer())
     return docx2txt.process(temp_file_path)
 
+@st.cache_data
 def get_text_from_txt(txt_file):
     return txt_file.getvalue().decode("utf-8")
 
+@st.cache_data
 def get_text_from_pdf(pdf_file):
     text = ""
     pdf_reader = PdfReader(pdf_file)
@@ -64,6 +71,7 @@ def get_text_from_pdf(pdf_file):
         text += page.extract_text()
     return text
 
+@st.cache_data
 def get_text_from_files(files):
     text = ""
     for file in files:
@@ -79,6 +87,7 @@ def get_text_from_files(files):
             st.error(f"Unsupported file type: {file.name}")
     return text
 
+@st.cache_data
 def get_text_from_url(url):
     try:
         response = requests.get(url)
@@ -89,11 +98,13 @@ def get_text_from_url(url):
         st.error(f"Error fetching the URL: {e}")
         return ""
 
+@st.cache_data
 def get_text_chunks(text):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=1000)
     chunks = text_splitter.split_text(text)
     return chunks
 
+@st.cache_data
 def get_vector_store(text_chunks):
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
     vector_store = FAISS.from_texts(text_chunks, embedding=embeddings)
@@ -125,7 +136,6 @@ def user_input(user_question):
 
 def main():
     # Retrieve or generate a unique session ID using cookies
-    st.set_page_config(page_title="Chat Docs and URL")
     if "session_id" not in cookies:
         cookies["session_id"] = str(uuid.uuid4())
         cookies.save()
@@ -137,7 +147,6 @@ def main():
         st.session_state[session_id] = {
             "chat_history": [AIMessage(content="Hello! I'm a document assistant. Ask me anything about the documents or the content from the URL.")],
         }
-        
 
     st.markdown("""
         <style>
@@ -145,6 +154,13 @@ def main():
                 font-size: 24px;
                 text-align: center;
                 margin-top: 20px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .main-header img {
+                margin-left: 10px;
+                height: 50px;  /* Adjust as needed */
             }
             .sub-header {
                 font-size: 18px;
@@ -159,7 +175,13 @@ def main():
         </style>
     """, unsafe_allow_html=True)
 
-    st.markdown("<h1 class='main-header'>Carnot Research</h1>", unsafe_allow_html=True)
+    st.markdown("""
+        <div class='main-header'>
+            Carnot Research
+            <img src='logo.png' alt='Logo'>
+        </div>
+    """, unsafe_allow_html=True)
+
     st.markdown("<h2 class='sub-header'>Chat with documents or URLs</h2>", unsafe_allow_html=True)
     st.markdown("<h3 class='upload-header'>Upload your Documents or Enter a URL</h3>", unsafe_allow_html=True)
 
