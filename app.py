@@ -113,10 +113,13 @@ def user_input(user_question):
     return response
 
 def main():
-    if "chat_history" not in st.session_state:
+    if "session_id" not in st.session_state:
+        st.session_state.session_id = os.urandom(24).hex()
         st.session_state.chat_history = [
-            AIMessage(content="Hello! I'm a document assistant. Ask me anything about the documents or the content from the URL."),
+            AIMessage(content="Hello! I'm a document assistant. Ask me anything about the documents you upload."),
         ]
+
+    session_id = st.session_state.session_id
 
     st.set_page_config(page_title="Chat Docs and URL")
 
@@ -140,7 +143,15 @@ def main():
         </style>
     """, unsafe_allow_html=True)
 
-    st.markdown("<h1 class='main-header'>Carnot Research</h1>", unsafe_allow_html=True)
+
+
+        # Layout for logo and header
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        st.image("logo.jpeg", width=100)
+    with col2:
+        st.markdown("<h1 style='display: inline-block; vertical-align: middle;'>Carnot Research</h1>", unsafe_allow_html=True)
+
     st.markdown("<h2 class='sub-header'>Chat with documents or URLs</h2>", unsafe_allow_html=True)
     st.markdown("<h3 class='upload-header'>Upload your Documents or Enter a URL</h3>", unsafe_allow_html=True)
 
@@ -201,3 +212,4 @@ if __name__ == "__main__":
         main()
     except Exception as e:
         st.error(f"An error occurred: {e}")
+
