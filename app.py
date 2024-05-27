@@ -108,10 +108,10 @@ def main():
         ]
 
     st.set_page_config(page_title="Chat PDF")
-    st.subheader("Carnot Research")
+    st.markdown("<h2 style='text-align: center;'>Carnot Research</h2>", unsafe_allow_html=True)
     st.subheader("Chat with your Documents")
     st.subheader("Upload Documents")
-    
+
     pdf_docs = st.file_uploader("Upload your PDF, DOC, DOCX, or TXT Files and Click on the Submit & Process Button", accept_multiple_files=True)
 
     if st.button("Submit & Process"):
