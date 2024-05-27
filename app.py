@@ -121,7 +121,7 @@ def main():
 
     session_id = st.session_state.session_id
 
-    st.set_page_config(page_title="Chat Docs and URL")
+    st.set_page_config(page_title="Chat Docs and URL",page_icon="logo.jpeg")
 
     st.markdown("""
         <style>
