@@ -11,3 +11,4 @@ asyncio
 langchain_community
 python-docx 
 docx2txt
+bs4
