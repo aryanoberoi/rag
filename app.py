@@ -114,7 +114,7 @@ def main():
             margin-top: 50px; /* Adjust this value to push the elements down */
         }
         .reduce-gap {
-            margin-bottom: 0px; /* Adjust this value to reduce the gap between elements */
+            margin-bottom: 50px; /* Adjust this value to reduce the gap between elements */
         }
     </style>
 """, unsafe_allow_html=True)
