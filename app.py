@@ -108,9 +108,9 @@ def main():
         ]
 
     st.set_page_config(page_title="Chat PDF")
-    st.header("Carnot Research")
-    st.header("Chat with your Documents")
-    st.header("Upload Documents")
+    st.subheader("Carnot Research")
+    st.subheader("Chat with your Documents")
+    st.subheader("Upload Documents")
     
     pdf_docs = st.file_uploader("Upload your PDF, DOC, DOCX, or TXT Files and Click on the Submit & Process Button", accept_multiple_files=True)
 
