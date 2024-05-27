@@ -14,6 +14,9 @@ from langchain.prompts import PromptTemplate
 from dotenv import load_dotenv
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.output_parsers import StrOutputParser
+import requests
+from bs4 import BeautifulSoup
+import uuid
 
 # Ensure the environment variables are loaded
 load_dotenv()
@@ -28,7 +31,6 @@ def get_or_create_eventloop():
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             return asyncio.get_event_loop()
-
 get_or_create_eventloop()
 
 def get_text_from_doc(doc_file):
@@ -67,6 +69,16 @@ def get_text_from_files(files):
             st.error(f"Unsupported file type: {file.name}")
     return text
 
+def get_text_from_url(url):
+    try:
+        response = requests.get(url)
+        soup = BeautifulSoup(response.content, "html.parser")
+        text = ' '.join(p.get_text() for p in soup.find_all('p'))
+        return text
+    except Exception as e:
+        st.error(f"Error fetching the URL: {e}")
+        return ""
+
 def get_text_chunks(text):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=1000)
     chunks = text_splitter.split_text(text)
@@ -102,41 +114,49 @@ def user_input(user_question):
     return response
 
 def main():
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = [
-            AIMessage(content="Hello! I'm a document assistant. Ask me anything about the documents"),
-        ]
+    # Generate or retrieve a unique session ID
+    if "session_id" not in st.session_state:
+        st.session_state.session_id = str(uuid.uuid4())
 
-    st.set_page_config(page_title="Chat PDF")
-    
+    session_id = st.session_state.session_id
+
+    # Ensure isolated session state
+    if session_id not in st.session_state:
+        st.session_state[session_id] = {
+            "chat_history": [AIMessage(content="Hello! I'm a document assistant. Ask me anything about the documents or the content from the URL.")],
+        }
+
+    st.set_page_config(page_title="Chat Docs and URL")
+
     st.markdown("""
         <style>
             .main-header {
-                font-size: 24px; /* Adjust the size to fit the screen */
+                font-size: 24px;
                 text-align: center;
-                margin-top: 20px; /* Adjust the top margin if needed */
+                margin-top: 20px;
             }
             .sub-header {
-                font-size: 18px; /* Adjust the size to fit the screen */
+                font-size: 18px;
                 text-align: center;
-                margin-top: 10px; /* Adjust the top margin if needed */
+                margin-top: 10px;
             }
             .upload-header {
-                font-size: 16px; /* Adjust the size to fit the screen */
+                font-size: 16px;
                 text-align: center;
-                margin-top: 5px; /* Adjust the top margin if needed */
+                margin-top: 5px;
             }
         </style>
     """, unsafe_allow_html=True)
 
-    # Apply the custom CSS classes to the headers
     st.markdown("<h1 class='main-header'>Carnot Research</h1>", unsafe_allow_html=True)
-    st.markdown("<h2 class='sub-header'>Chat with documents</h2>", unsafe_allow_html=True)
-    st.markdown("<h3 class='upload-header'>Upload your Documents</h3>", unsafe_allow_html=True)
+    st.markdown("<h2 class='sub-header'>Chat with documents or URLs</h2>", unsafe_allow_html=True)
+    st.markdown("<h3 class='upload-header'>Upload your Documents or Enter a URL</h3>", unsafe_allow_html=True)
 
-    pdf_docs = st.file_uploader("Upload your PDF, DOC, DOCX, or TXT Files and Click on the Submit & Process Button", accept_multiple_files=True)
+    pdf_docs = st.file_uploader("Upload your PDF, DOC, DOCX, or TXT Files", accept_multiple_files=True)
+    url_input = st.text_input("Or enter a URL to process")
 
     if st.button("Submit & Process"):
+        raw_text = ""
         if pdf_docs:
             valid_files = True
             for doc in pdf_docs:
@@ -147,15 +167,24 @@ def main():
             if valid_files:
                 with st.spinner("Processing..."):
                     raw_text = get_text_from_files(pdf_docs)
-                    text_chunks = get_text_chunks(raw_text)
-                    get_vector_store(text_chunks)
-                    st.success("Done")
+                    st.success("Documents processed successfully.")
             else:
                 st.error("Please upload files in PDF, DOC, DOCX, or TXT format.")
+        elif url_input:
+            with st.spinner("Processing URL..."):
+                raw_text = get_text_from_url(url_input)
+                if raw_text:
+                    st.success("URL processed successfully.")
         else:
-            st.error("No files uploaded. Please upload one or more documents.")
+            st.error("No files uploaded or URL provided. Please upload documents or provide a URL.")
 
-    for message in st.session_state.chat_history:
+        if raw_text:
+            text_chunks = get_text_chunks(raw_text)
+            get_vector_store(text_chunks)
+
+    chat_history = st.session_state[session_id]["chat_history"]
+
+    for message in chat_history:
         if isinstance(message, AIMessage):
             with st.chat_message("AI"):
                 st.markdown(message.content)
@@ -166,7 +195,7 @@ def main():
     user_query = st.chat_input("Type a message...")
 
     if user_query and user_query.strip() != "":
-        st.session_state.chat_history.append(HumanMessage(content=user_query))
+        chat_history.append(HumanMessage(content=user_query))
 
         with st.chat_message("Human"):
             st.markdown(user_query)
@@ -175,11 +204,13 @@ def main():
             response = user_input(user_query)
             res = response["output_text"]
             st.markdown(res)
-            st.session_state.chat_history.append(AIMessage(content=res))
+            chat_history.append(AIMessage(content=res))
+
+    st.session_state[session_id]["chat_history"] = chat_history
 
 if __name__ == "__main__":
     try:
         main()
-    except Exception as e :
-        st.markdown(e)
+    except Exception as e:
+        st.error(f"An error occurred: {e}")
 
