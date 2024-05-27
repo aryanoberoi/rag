@@ -107,22 +107,11 @@ def main():
             AIMessage(content="Hello! I'm a document assistant. Ask me anything about the documents"),
         ]
 
-    st.markdown("""
-    <style>
-        .center-text {
-            text-align: center;
-            margin-top: 5px; /* Adjust this value to push the elements down */
-        }
-        .reduce-gap {
-            margin-bottom: 0px; /* Adjust this value to reduce the gap between elements */
-        }
-    </style>
-""", unsafe_allow_html=True)
-
-# Using custom CSS classes for styling
-    st.markdown("<h2 class='center-text reduce-gap'>Carnot Research</h2>", unsafe_allow_html=True)
-    st.markdown("<h4 class='center-text reduce-gap'>Chat with your Documents</h4>", unsafe_allow_html=True)
-    st.markdown("<h4 class='center-text'>Upload Documents</h4>", unsafe_allow_html=True)
+    st.set_page_config(page_title="Chat PDF")
+    
+    st.header("Carnot Research /n <h2> Chat with your Document </h2>")
+    st.subheader("Chat with your Document")
+    st.subheader("Upload your Documents")
 
     pdf_docs = st.file_uploader("Upload your PDF, DOC, DOCX, or TXT Files and Click on the Submit & Process Button", accept_multiple_files=True)
 
