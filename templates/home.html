@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Document and URL Processor</title>
+</head>
+<body>
+    <h1>Welcome to the Document and URL Processor</h1>
+    <form action="" method="post" enctype="multipart/form-data">
+        <label for="document">Upload your document:</label>
+        <input type="file" id="document" name="document"><br><br>
+        <label for="url">Enter a URL:</label>
+        <input type="text" id="url" name="url"><br><br>
+        <input type="submit" value="Submit">
+    </form>
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul>
+        {% for message in messages %}
+          <li>{{ message }}</li>
+        {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+</body>
+</html>

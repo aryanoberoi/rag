@@ -1,6 +1,7 @@
 import streamlit as st
 import asyncio
 from PyPDF2 import PdfReader
+from werkzeug.utils import secure_filename
 from docx import Document
 import docx2txt
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -16,11 +17,13 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.output_parsers import StrOutputParser
 import requests
 from bs4 import BeautifulSoup
-
+from flask import Flask, request, render_template, redirect, url_for, session, flash
 # Ensure the environment variables are loaded
 load_dotenv()
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
+app = Flask(__name__)
+app.secret_key = os.urandom(24)
 # Function to handle asyncio event loop
 def get_or_create_eventloop():
     try:
@@ -113,103 +116,42 @@ def user_input(user_question):
     )
     return response
 
+@app.route('/', methods=['GET', 'POST'])
+def home():
+    if request.method == 'POST':
+        if 'document' in request.files:
+            file = request.files['document']
+            if file.filename != '':
+                filename = secure_filename(file.filename)
+                file_path = os.path.join('/path/to/upload/folder', filename)
+                file.save(file_path)
+                # Process the file based on its type
+                raw_text = get_text_from_files([file])  # Adjust this function to work with Flask file storage
+                # Process text, etc.
+                return redirect(url_for('chat'))
+        elif 'url' in request.form:
+            url = request.form['url']
+            if url:
+                # Process the URL
+                raw_text = get_text_from_url(url)
+                # Process text, etc.
+                return redirect(url_for('chat'))
+    return render_template('home.html')
 
-def main():
-    if "session_id" not in st.session_state:
-        st.session_state.session_id = os.urandom(24).hex()
-        st.session_state.chat_history = [
-            AIMessage(content="Hello! I'm a document assistant. Ask me anything about the documents you upload."),
-        ]
+@app.route('/chat', methods=['GET', 'POST'])
+def chat():
+    if request.method == 'POST':
+        user_query = request.form['message']
+        if user_query:
+            # Handle chat interaction here
+            response = user_input(user_query)  # Define user_input to integrate with your chat model
+            flash(response)
+            return redirect(url_for('chat'))
+    return render_template('chat.html')
 
-    session_id = st.session_state.session_id
 
-    st.set_page_config(page_title="Chat Docs and URL",page_icon="logo.jpeg")
-
-    st.markdown("""
-        <style>
-            .main-header {
-                font-size: 24px;
-                text-align: center;
-                margin-top: 20px;
-            }
-            .sub-header {
-                font-size: 18px;
-                text-align: center;
-                margin-top: 10px;
-            }
-            .upload-header {
-                font-size: 16px;
-                text-align: center;
-                margin-top: 5px;
-            }
-        </style>
-    """, unsafe_allow_html=True)
-
-    col1, col2 = st.columns([1, 3])
-    with col1:
-        st.image("logo.jpeg", width=100)
-    with col2:
-        st.markdown("<h1 style='display: inline-block; vertical-align: middle;'>Carnot Research</h1>", unsafe_allow_html=True)
-
-    st.markdown("<h2 class='sub-header'>Chat with documents or URLs</h2>", unsafe_allow_html=True)
-    st.markdown("<h3 class='upload-header'>Upload your Documents or Enter a URL</h3>", unsafe_allow_html=True)
-
-    pdf_docs = st.file_uploader("Upload your PDF, DOC, DOCX, or TXT Files", accept_multiple_files=True)
-    url_input = st.text_input("Or enter a URL to process")
-
-    if st.button("Submit & Process"):
-        raw_text = ""
-        if pdf_docs:
-            valid_files = True
-            for doc in pdf_docs:
-                if not (doc.name.endswith(".pdf") or doc.name.endswith(".doc") or doc.name.endswith(".docx") or doc.name.endswith(".txt")):
-                    valid_files = False
-                    break
-
-            if valid_files:
-                with st.spinner("Processing..."):
-                    raw_text = get_text_from_files(pdf_docs)
-                    st.success("Documents processed successfully.")
-            else:
-                st.error("Please upload files in PDF, DOC, DOCX, or TXT format.")
-        elif url_input:
-            with st.spinner("Processing URL..."):
-                raw_text = get_text_from_url(url_input)
-                if raw_text:
-                    st.success("URL processed successfully.")
-        else:
-            st.error("No files uploaded or URL provided. Please upload documents or provide a URL.")
-
-        if raw_text:
-            text_chunks = get_text_chunks(raw_text)
-            get_vector_store(text_chunks)
-
-    for message in st.session_state.chat_history:
-        if isinstance(message, AIMessage):
-            with st.chat_message("AI"):
-                st.markdown(message.content)
-        elif isinstance(message, HumanMessage):
-            with st.chat_message("Human"):
-                st.markdown(message.content)
-
-    user_query = st.chat_input("Type a message...")
-
-    if user_query and user_query.strip() != "":
-        st.session_state.chat_history.append(HumanMessage(content=user_query))
-
-        with st.chat_message("Human"):
-            st.markdown(user_query)
-
-        with st.chat_message("AI"):
-            response = user_input(user_query)
-            res = response["output_text"]
-            st.markdown(res)
-            st.session_state.chat_history.append(AIMessage(content=res))
 
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        st.error(f"An error occurred: {e}")
+    app.run(debug=True, host='0.0.0.0', port=5000)
 
 
