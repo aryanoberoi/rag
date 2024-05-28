@@ -1,11 +1,12 @@
 # Chat PDF using Gemini
 
-This project is a Streamlit application that allows users to chat with their PDF documents using Google's Gemini model for conversational AI. Users can upload PDF files, and the application processes these files to enable natural language queries about their content. The responses are generated using advanced AI embeddings and conversational chains provided by Google Generative AI.
+This project is a Streamlit application that allows users to chat with their PDF documents using Google's Gemini model for conversational AI. Users can upload Documents or Links, and the application processes these  to enable natural language queries about their content. The responses are generated using advanced AI embeddings and conversational chains provided by Google Generative AI.
 
 ## Features
 
-- **PDF Upload**: Users can upload multiple PDF documents for processing.
-- **Text Extraction**: Extracts text from the uploaded PDF files.
+- **DocumentUpload**: Users can upload multiple format documents for processing.
+- **URL Upload**: Users can upload URL or document.
+- **Text Extraction**: Extracts text from the uploaded files or URL.
 - **Text Chunking**: Splits the extracted text into manageable chunks for efficient processing.
 - **Vector Store**: Creates and saves a vector store using FAISS for fast similarity searches.
 - **Conversational AI**: Utilizes Google's Gemini model to answer user queries based on the content of the uploaded PDFs.
