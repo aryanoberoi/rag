@@ -90,7 +90,7 @@ def get_vector_store(text_chunks):
 
 def get_conversational_chain():
     prompt_template = """
-   Answer the question as detailed as possible. Please ensure that the answer is detailed and accurate based on the provided context. Review the chat history carefully to provide all necessary details and avoid incorrect information. Treat synonyms or similar words as equivalent within the context. For example, if a question refers to "modules" instead of "chapters" or "doc" instead of "document," consider them the same. If the question is not related to the provided context, simply respond with "out of context."
+   Answer the question as detailed as possible. Please ensure that the answer is detailed and accurate based on the provided context. Review the chat history carefully to provide all necessary details and avoid incorrect information. Treat synonyms or similar words as equivalent within the context. For example, if a question refers to "modules" or "units" instead of "chapters" or "doc" instead of "document" consider them the same. If the question is not related to the provided context, simply respond with "out of context."
 
 
     Context:\n{context}?\n
@@ -145,9 +145,6 @@ def main():
         </style>
     """, unsafe_allow_html=True)
 
-
-
-        # Layout for logo and header
     col1, col2 = st.columns([1, 3])
     with col1:
         st.image("logo.jpeg", width=100)
