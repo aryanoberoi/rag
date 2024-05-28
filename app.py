@@ -90,7 +90,8 @@ def get_vector_store(text_chunks):
 
 def get_conversational_chain():
     prompt_template = """
-    Answer the question as detailed as possible from the provided context, and keep chat history in mind and make sure to provide all the details. Don't give wrong information; give answer from context only. If the question is not related to context, simply respond 'out of context'. Kindly go through the chat history also.
+   Answer the question as detailed as possible. Please ensure that the answer is detailed and accurate based on the provided context. Review the chat history carefully to provide all necessary details and avoid incorrect information. Treat synonyms or similar words as equivalent within the context. For example, if a question refers to "modules" instead of "chapters" or "doc" instead of "document," consider them the same. If the question is not related to the provided context, simply respond with "out of context."
+
 
     Context:\n{context}?\n
     Question:\n{question}\n
@@ -111,6 +112,7 @@ def user_input(user_question):
         {"input_documents": docs, "question": user_question}, StrOutputParser()
     )
     return response
+
 
 def main():
     if "session_id" not in st.session_state:
@@ -212,4 +214,5 @@ if __name__ == "__main__":
         main()
     except Exception as e:
         st.error(f"An error occurred: {e}")
+
 
