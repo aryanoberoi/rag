@@ -1,7 +1,7 @@
-import streamlit as st
+from flask import Flask, request, jsonify, render_template, session
+from flask_session import Session
 import asyncio
 from PyPDF2 import PdfReader
-from werkzeug.utils import secure_filename
 from docx import Document
 import docx2txt
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -17,13 +17,17 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.output_parsers import StrOutputParser
 import requests
 from bs4 import BeautifulSoup
-from flask import Flask, request, render_template, redirect, url_for, session, flash
+from werkzeug.utils import secure_filename
+
+app = Flask(__name__)
+app.secret_key = 'supersecretkey'
+app.config['SESSION_TYPE'] = 'filesystem'
+Session(app)
+
 # Ensure the environment variables are loaded
 load_dotenv()
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
-app = Flask(__name__)
-app.secret_key = os.urandom(24)
 # Function to handle asyncio event loop
 def get_or_create_eventloop():
     try:
@@ -43,11 +47,11 @@ def get_text_from_docx(docx_file):
     # Save the uploaded file to a temporary location to be processed by docx2txt
     temp_file_path = "temp.docx"
     with open(temp_file_path, "wb") as f:
-        f.write(docx_file.getbuffer())
+        f.write(docx_file.read())
     return docx2txt.process(temp_file_path)
 
 def get_text_from_txt(txt_file):
-    return txt_file.getvalue().decode("utf-8")
+    return txt_file.read().decode("utf-8")
 
 def get_text_from_pdf(pdf_file):
     text = ""
@@ -59,16 +63,16 @@ def get_text_from_pdf(pdf_file):
 def get_text_from_files(files):
     text = ""
     for file in files:
-        if file.name.endswith(".pdf"):
+        if file.filename.endswith(".pdf"):
             text += get_text_from_pdf(file)
-        elif file.name.endswith(".doc"):
+        elif file.filename.endswith(".doc"):
             text += get_text_from_doc(file)
-        elif file.name.endswith(".docx"):
+        elif file.filename.endswith(".docx"):
             text += get_text_from_docx(file)
-        elif file.name.endswith(".txt"):
+        elif file.filename.endswith(".txt"):
             text += get_text_from_txt(file)
         else:
-            st.error(f"Unsupported file type: {file.name}")
+            return f"Unsupported file type: {file.filename}"
     return text
 
 def get_text_from_url(url):
@@ -78,8 +82,7 @@ def get_text_from_url(url):
         text = ' '.join(p.get_text() for p in soup.find_all('p'))
         return text
     except Exception as e:
-        st.error(f"Error fetching the URL: {e}")
-        return ""
+        return f"Error fetching the URL: {e}"
 
 def get_text_chunks(text):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=1000)
@@ -93,7 +96,7 @@ def get_vector_store(text_chunks):
 
 def get_conversational_chain():
     prompt_template = """
-   Answer the question as detailed as possible. Please ensure that the answer is detailed and accurate based on the provided context. Review the chat history carefully to provide all necessary details and avoid incorrect information. Treat synonyms or similar words as equivalent within the context. For example, if a question refers to "modules" or "units" instead of "chapters" or "doc" instead of "document" consider them the same. If the question is not related to the provided context, simply respond with "out of context."
+    Answer the question as detailed as possible. Please ensure that the answer is detailed and accurate based on the provided context. Review the chat history carefully to provide all necessary details and avoid incorrect information. Treat synonyms or similar words as equivalent within the context. For example, if a question refers to "modules" or "units" instead of "chapters" or "doc" instead of "document" consider them the same. If the question is not related to the provided context, simply respond with "out of context."
 
 
     Context:\n{context}?\n
@@ -117,41 +120,46 @@ def user_input(user_question):
     return response
 
 @app.route('/', methods=['GET', 'POST'])
-def home():
+def index():
+    if 'session_id' not in session:
+        session['session_id'] = os.urandom(24).hex()
+        session['chat_history'] = [
+            AIMessage(content="Hello! I'm a document assistant. Ask me anything about the documents you upload."),
+        ]
+
     if request.method == 'POST':
-        if 'document' in request.files:
-            file = request.files['document']
-            if file.filename != '':
-                filename = secure_filename(file.filename)
-                file_path = os.path.join('/path/to/upload/folder', filename)
-                file.save(file_path)
-                # Process the file based on its type
-                raw_text = get_text_from_files([file])  # Adjust this function to work with Flask file storage
-                # Process text, etc.
-                return redirect(url_for('chat'))
-        elif 'url' in request.form:
-            url = request.form['url']
-            if url:
-                # Process the URL
-                raw_text = get_text_from_url(url)
-                # Process text, etc.
-                return redirect(url_for('chat'))
-    return render_template('home.html')
+        files = request.files.getlist("files")
+        url_input = request.form.get("url_input")
+        raw_text = ""
 
-@app.route('/chat', methods=['GET', 'POST'])
-def chat():
-    if request.method == 'POST':
-        user_query = request.form['message']
-        if user_query:
-            # Handle chat interaction here
-            response = user_input(user_query)  # Define user_input to integrate with your chat model
-            flash(response)
-            return redirect(url_for('chat'))
-    return render_template('chat.html')
+        if files and files[0].filename != '':
+            valid_files = all(f.filename.endswith(('.pdf', '.doc', '.docx', '.txt')) for f in files)
+            if valid_files:
+                raw_text = get_text_from_files(files)
+            else:
+                return "Please upload files in PDF, DOC, DOCX, or TXT format."
+        elif url_input:
+            raw_text = get_text_from_url(url_input)
+        else:
+            return "No files uploaded or URL provided. Please upload documents or provide a URL."
 
+        if raw_text:
+            text_chunks = get_text_chunks(raw_text)
+            get_vector_store(text_chunks)
 
+    chat_history = session.get('chat_history', [])
+    return render_template('index.html', chat_history=chat_history)
+
+@app.route('/ask', methods=['POST'])
+def ask():
+    user_query = request.json.get("question")
+    if user_query and user_query.strip():
+        session['chat_history'].append(HumanMessage(content=user_query))
+        response = user_input(user_query)
+        res = response["output_text"]
+        session['chat_history'].append(AIMessage(content=res))
+        return jsonify({"answer": res})
+    return jsonify({"error": "Invalid input"})
 
 if __name__ == "__main__":
-    app.run(debug=True, host='0.0.0.0', port=5000)
-
-
+    app.run(debug=True)

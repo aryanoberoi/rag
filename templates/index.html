@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat with Documents or URLs</title>
+    <style>
+body {
+    font-family: 'Roboto', sans-serif;
+    line-height: 1.6;
+}
+label {
+    color: #FFFFFF;
+}
+
+h1, h2 {
+    text-align: center;
+    color: #000000;
+    margin-bottom: 20px;
+}
+
+.chat-box {
+    width: 80%;
+    margin: 20px auto;
+    background-color: #222;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+}
+
+.chat-message {
+    padding: 15px 20px;
+    border-radius: 12px;
+    margin: 10px 0;
+    background-color: #333;
+    color: #FFF;
+}
+        .chat-message.user {
+            background-color: #00008B;
+            text-align: right;
+            margin-left: 20%;
+        }
+        .chat-message.ai {
+            background-color: #555;
+            text-align: left;
+            margin-right: 20%;
+        }
+        form {
+            width: 80%;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #222;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+        }
+        input[type="text"], input[type="file"] {
+            width: 95%;
+            padding: 10px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 4px;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #00008B;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #00008B;
+        }
+    </style>
+</head>
+<body>
+    <h1>Carnot Research</h1>
+    <h2>Chat with documents or URLs</h2>
+
+    <form method="post" enctype="multipart/form-data">
+        <label for="files" >Upload your PDF, DOC, DOCX, or TXT Files:</label>
+        <input type="file" id="files" name="files" multiple><br><br>
+        <label for="url_input">Or enter a URL to process:</label>
+        <input type="text" id="url_input" name="url_input"><br><br>
+        <button type="submit">Submit & Process</button>
+    </form>
+
+    <div class="chat-box">
+        <!-- Messages will be added here dynamically -->
+    </div>
+    <input type="text" id="chatInput" class="chat-input" placeholder="Type a message...">
+    <button onclick="sendMessage()">Send</button>
+
+    <script>
+        async function sendMessage() {
+            const chatInput = document.getElementById('chatInput');
+            const message = chatInput.value;
+            const response = await fetch('/ask', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ question: message })
+            });
+            const data = await response.json();
+            if (data.answer) {
+                const chatBox = document.querySelector('.chat-box');
+                const userMessage = document.createElement('div');
+                userMessage.classList.add('chat-message', 'user');
+                userMessage.textContent = message;
+                chatBox.appendChild(userMessage);
+                const aiMessage = document.createElement('div');
+                aiMessage.classList.add('chat-message', 'ai');
+                aiMessage.textContent = data.answer;
+                chatBox.appendChild(aiMessage);
+                chatInput.value = '';
+            }
+        }
+    </script>
+</body>
+</html>
