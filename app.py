@@ -88,11 +88,11 @@ def get_text_chunks(text):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=1000)
     chunks = text_splitter.split_text(text)
     return chunks
-
-def get_vector_store(text_chunks):
+# take foldername input 
+def get_vector_store(text_chunks, usersession):
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
     vector_store = FAISS.from_texts(text_chunks, embedding=embeddings)
-    vector_store.save_local("faiss_index")
+    vector_store.save_local(usersession)
 
 def get_conversational_chain():
     prompt_template = """
@@ -108,9 +108,9 @@ def get_conversational_chain():
     chain = load_qa_chain(model, chain_type="stuff", prompt=prompt)
     return chain
 
-def user_input(user_question):
+def user_input(user_question, usersession):
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-    new_db = FAISS.load_local("faiss_index", embeddings, allow_dangerous_deserialization=True)
+    new_db = FAISS.load_local(usersession, embeddings, allow_dangerous_deserialization=True)
     docs = new_db.similarity_search(user_question)
     chain = get_conversational_chain()
 
@@ -121,6 +121,10 @@ def user_input(user_question):
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
+    message = None  # Initialize a message variable
+    file_details = []  # Initialize a list to store file details
+    url_displayed = session.get('url_input', '')  # Retrieve the stored URL or set it to empty string
+
     if 'session_id' not in session:
         session['session_id'] = os.urandom(24).hex()
         session['chat_history'] = [
@@ -136,30 +140,38 @@ def index():
             valid_files = all(f.filename.endswith(('.pdf', '.doc', '.docx', '.txt')) for f in files)
             if valid_files:
                 raw_text = get_text_from_files(files)
+                message = "Files successfully uploaded."
+
+                # Get file details for display
+                for file in files:
+                    file_details.append({"name": file.filename})
             else:
-                return "Please upload files in PDF, DOC, DOCX, or TXT format."
+                message = "Please upload files in PDF, DOC, DOCX, or TXT format."
         elif url_input:
             raw_text = get_text_from_url(url_input)
+            message = "URL processed successfully. URl: " + url_input
+            session['url_input'] = url_input  # Store the URL in the session
         else:
-            return "No files uploaded or URL provided. Please upload documents or provide a URL."
+            message = "No files uploaded or URL provided. Please upload documents or provide a URL."
 
         if raw_text:
             text_chunks = get_text_chunks(raw_text)
-            get_vector_store(text_chunks)
+            get_vector_store(text_chunks, session['session_id'])
 
     chat_history = session.get('chat_history', [])
-    return render_template('index.html', chat_history=chat_history)
+    return render_template('index.html', chat_history=chat_history, message=message, file_details=file_details, url_displayed=url_displayed)
 
 @app.route('/ask', methods=['POST'])
 def ask():
     user_query = request.json.get("question")
     if user_query and user_query.strip():
         session['chat_history'].append(HumanMessage(content=user_query))
-        response = user_input(user_query)
+        response = user_input(user_query, session['session_id'])
         res = response["output_text"]
         session['chat_history'].append(AIMessage(content=res))
-        return jsonify({"answer": res})
+        return jsonify({"answer": res, "url": session.get('url_input', '')})
     return jsonify({"error": "Invalid input"})
+
 
 if __name__ == "__main__":
     app.run(debug=True)

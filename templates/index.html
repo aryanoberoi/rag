@@ -5,120 +5,208 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat with Documents or URLs</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.5.0/css/all.css" integrity="sha384-B4dIYHKNBt8Bc12p+WXckhzcICo0wtJAoU8YZTY5qE0Id1GSseTk6S+L3BlXeVIU" crossorigin="anonymous">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='chat.css')}}"/>
     <style>
-body {
-    font-family: 'Roboto', sans-serif;
-    line-height: 1.6;
-}
-label {
-    color: #FFFFFF;
-}
-
-h1, h2 {
-    text-align: center;
-    color: #000000;
-    margin-bottom: 20px;
-}
-
-.chat-box {
-    width: 80%;
-    margin: 20px auto;
-    background-color: #222;
-    border-radius: 8px;
-    padding: 20px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.5);
-}
-
-.chat-message {
-    padding: 15px 20px;
-    border-radius: 12px;
-    margin: 10px 0;
-    background-color: #333;
-    color: #FFF;
-}
-        .chat-message.user {
-            background-color: #00008B;
-            text-align: right;
-            margin-left: 20%;
+        /* General body styling */
+        body {
+            background-color: #333;
+            color: #fff;
+            font-family: 'Roboto', sans-serif;
         }
-        .chat-message.ai {
-            background-color: #555;
-            text-align: left;
-            margin-right: 20%;
-        }
+
+        /* Styling for the form */
         form {
-            width: 80%;
-            margin: 0 auto;
+            background-color: #444;
             padding: 20px;
-            background-color: #222;
             border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            margin: 20px auto;
+            width: 90%;
+            max-width: 600px;
         }
-        input[type="text"], input[type="file"] {
-            width: 95%;
-            padding: 10px;
-            margin: 10px 0;
-            border: none;
-            border-radius: 4px;
+
+        label {
+            font-weight: 700;
+            margin-bottom: 10px;
+            display: block;
         }
-        button {
+
+        input[type="file"],
+        input[type="text"] {
             width: 100%;
             padding: 10px;
-            background-color: #00008B;
-            color: white;
+            margin-top: 5px;
+            margin-bottom: 20px;
+            border-radius: 5px;
             border: none;
-            border-radius: 4px;
+            background-color: #555;
+            color: white;
+        }
+
+        input[type="file"]::file-selector-button,
+        button {
+            padding: 10px 15px;
+            border-radius: 5px;
+            border: none;
+            background-color: #666;
+            color: white;
             cursor: pointer;
             transition: background-color 0.3s;
         }
+
+        input[type="file"]::file-selector-button:hover,
         button:hover {
-            background-color: #00008B;
+            background-color: #777;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            form {
+                width: 95%;
+            }
         }
     </style>
 </head>
 <body>
-    <h1>Carnot Research</h1>
-    <h2>Chat with documents or URLs</h2>
+    
 
-    <form method="post" enctype="multipart/form-data">
-        <label for="files" >Upload your PDF, DOC, DOCX, or TXT Files:</label>
-        <input type="file" id="files" name="files" multiple><br><br>
-        <label for="url_input">Or enter a URL to process:</label>
-        <input type="text" id="url_input" name="url_input"><br><br>
-        <button type="submit">Submit & Process</button>
+
+    <form method="post" enctype="multipart/form-data" style="background-color: #333; padding: 20px; border-radius: 8px; color: white; font-family: Arial, sans-serif;">
+        <label for="files" style="display: block; margin-bottom: 10px;">Upload your PDF, DOC, DOCX, or TXT Files:</label>
+        <input type="file" id="files" name="files" multiple style="display: block; width: 95%; margin-bottom: 20px; color: #ccc; background-color: #222; border: none; padding: 8px; border-radius: 4px;">
+        <div id="fileList">
+            <!-- Uploaded file names and information will be displayed here -->
+        </div>
+        <label for="url_input" style="display: block; margin-bottom: 10px;">Or enter a URL to process:</label>
+        <input type="text" id="url_input" name="url_input" style="display: block; width: 95%; margin-bottom: 20px; color: #ccc; background-color: #222; border: none; padding: 8px; border-radius: 4px;">
+        <button type="submit" style="background-color: #555; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 16px;">Submit & Process</button>
     </form>
+    <div style="background-color: #333; padding: 10px; border-radius: 8px; color: white; font-family: Arial, sans-serif;">
+        <center>
+        <!-- Display the message here -->
+        {% if message %}
+        <div style="color: rgb(255, 255, 255); margin-top: 20px;">
+            {{ message }}
+        </div>
+        {% endif %}
 
-    <div class="chat-box">
-        <!-- Messages will be added here dynamically -->
+        <!-- Display file details -->
+        <div style="background-color: #222; padding: 10px; border-radius: 8px;">
+            <ul>
+                {% for file in file_details %}
+                    <li>{{ file.name }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        </center>
     </div>
-    <input type="text" id="chatInput" class="chat-input" placeholder="Type a message...">
-    <button onclick="sendMessage()">Send</button>
+</center>
+<div class="container-fluid h-100">
+			<div class="row justify-content-center h-100">		
+				<div class="col-md-8 col-xl-6 chat">
+					<div class="card">
+						<div class="card-header msg_head">
+							<div class="d-flex bd-highlight">
+						   
+							</div>
+						</div>
+						<div id="messageFormeight" class="card-body msg_card_body">
+							
+							
+						</div>
+						<div class="card-footer">
+							<form id="messageArea" class="input-group">
+                                <input type="text" id="text" name="msg" placeholder="Type your message..." autocomplete="off" class="form-control type_msg" required/>
+								<div class="input-group-append">
+									<button type="submit" id="send" class="input-group-text send_btn"><i class="fas fa-location-arrow"></i></button>
+								</div>
+							</form>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
 
     <script>
-        async function sendMessage() {
-            const chatInput = document.getElementById('chatInput');
-            const message = chatInput.value;
-            const response = await fetch('/ask', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ question: message })
-            });
-            const data = await response.json();
-            if (data.answer) {
-                const chatBox = document.querySelector('.chat-box');
-                const userMessage = document.createElement('div');
-                userMessage.classList.add('chat-message', 'user');
-                userMessage.textContent = message;
-                chatBox.appendChild(userMessage);
-                const aiMessage = document.createElement('div');
-                aiMessage.classList.add('chat-message', 'ai');
-                aiMessage.textContent = data.answer;
-                chatBox.appendChild(aiMessage);
-                chatInput.value = '';
+        const fileInput = document.getElementById('files');
+        fileInput.addEventListener('change', handleFileUpload);
+
+        function handleFileUpload(event) {
+            const fileList = event.target.files;
+            const fileListContainer = document.getElementById('fileList');
+            fileListContainer.innerHTML = '';
+
+            for (let i = 0; i < fileList.length; i++) {
+                const file = fileList[i];
+                const fileInfo = document.createElement('p');
+                fileInfo.textContent = `File Name: ${file.name}, File Size: ${file.size} bytes`;
+                fileListContainer.appendChild(fileInfo);
             }
         }
+    </script>
+
+
+    <script>
+            document.getElementById('files').addEventListener('change', function() {
+            const fileInfo = document.getElementById('fileInfo');
+            const files = this.files;
+            if (files.length > 0) {
+                fileInfo.textContent = `File: ${files[0].name}`;
+                fileInfo.style.display = 'block';
+            } else {
+                fileInfo.textContent = '';
+                fileInfo.style.display = 'none';
+            }
+        });
+        $(document).ready(function() {
+    $("#messageArea").on("submit", function(event) {
+        event.preventDefault(); // Prevent the default form submission
+        const date = new Date();
+        const hour = date.getHours();
+        const minute = date.getMinutes();
+        const str_time = hour + ":" + minute;
+        var rawText = $("#text").val();
+
+        var userHtml = '<div class="d-flex justify-content-end mb-4"><div class="msg_cotainer_send">' + rawText + '<span class="msg_time_send">' + str_time + '</span></div><div class="img_cont_msg"><img src="https://i.ibb.co/d5b84Xw/Untitled-design.png" class="rounded-circle user_img_msg"></div></div>';
+        
+        $("#text").val("");
+        $("#messageFormeight").append(userHtml);
+        scrollToBottom();
+
+        $.ajax({
+            method: "POST",
+            url: "/ask",
+            contentType: "application/json",
+            data: JSON.stringify({ question: rawText }),
+            success: function(data) {
+                if (data.answer) {
+                    var botHtml = '<div class="d-flex justify-content-start mb-4"><div class="img_cont_msg"><img src="' + "{{ url_for('static', filename='cr.jpg')}}" + '" class="rounded-circle user_img_msg"></div><div class="msg_cotainer">' + data.answer + '<span class="msg_time">' + str_time + '</span></div></div>';
+                    $("#messageFormeight").append($.parseHTML(botHtml));
+                    scrollToBottom();
+                }
+            },
+            error: function() {
+                console.error("Error fetching response from /ask endpoint.");
+            }
+        });
+    });
+
+    function scrollToBottom() {
+        $('.msg_card_body').scrollTop($('.msg_card_body')[0].scrollHeight);
+    }
+});
+function updateChatWithUrl() {
+    var url = '{{ url_displayed }}';  // This will get the URL from the backend
+    if (url) {
+        var urlHtml = '<div class="url-display">URL: ' + url + '</div>';
+        $("#messageFormeight").prepend(urlHtml); // Add the URL to the top of the chat
+    }
+}
+
     </script>
 </body>
 </html>
