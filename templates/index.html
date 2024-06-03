@@ -17,6 +17,25 @@
             font-family: 'Roboto', sans-serif;
         }
 
+        /* Header styling */
+        header {
+            background-color: #222;
+            color: #fff;
+            padding: 10px;
+            text-align: center;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .company-icon {
+            margin-right: 5px;
+        }
+        .app-name {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
         /* Styling for the form */
         form {
             background-color: #444;
@@ -71,8 +90,10 @@
     </style>
 </head>
 <body>
-    
-
+    <header>
+        <img src="static/cr.jpg" alt="Company Icon" class="company-icon">
+        <h1 class="app-name">Chat with Documents or URL</h1>
+    </header>
 
     <form method="post" enctype="multipart/form-data" style="background-color: #333; padding: 20px; border-radius: 8px; color: white; font-family: Arial, sans-serif;">
         <label for="files" style="display: block; margin-bottom: 10px;">Upload your PDF, DOC, DOCX, or TXT Files:</label>
@@ -82,6 +103,59 @@
         </div>
         <label for="url_input" style="display: block; margin-bottom: 10px;">Or enter a URL to process:</label>
         <input type="text" id="url_input" name="url_input" style="display: block; width: 95%; margin-bottom: 20px; color: #ccc; background-color: #222; border: none; padding: 8px; border-radius: 4px;">
+        <label for="input_language" style="display: block; margin-bottom: 10px;">Select Input Language:</label>
+        <select id="input_language" name="input_language" style="display: block; width: 95%; margin-bottom: 20px; color: #ccc; background-color: #222; border: none; padding: 8px; border-radius: 4px;">
+            <option value="1">Hindi</option>
+            <option value="2">Gom</option>
+            <option value="3">Kannada</option>
+            <option value="4">Dogri</option>
+            <option value="5">Bodo</option>
+            <option value="6">Urdu</option>
+            <option value="7">Tamil</option>
+            <option value="8">Kashmiri</option>
+            <option value="9">Assamese</option>
+            <option value="10">Bengali</option>
+            <option value="11">Marathi</option>
+            <option value="12">Sindhi</option>
+            <option value="13">Maithili</option>
+            <option value="14">Punjabi</option>
+            <option value="15">Malayalam</option>
+            <option value="16">Manipuri</option>
+            <option value="17">Telugu</option>
+            <option value="18">Sanskrit</option>
+            <option value="19">Nepali</option>
+            <option value="20">Santali</option>
+            <option value="21">Gujarati</option>
+            <option value="22">Odia</option>
+            <option value="23">English</option>
+        </select>
+
+        <label for="output_language" style="display: block; margin-bottom: 10px;">Select Output Language:</label>
+        <select id="output_language" name="output_language" style="display: block; width: 95%; margin-bottom: 20px; color: #ccc; background-color: #222; border: none; padding: 8px; border-radius: 4px;">
+            <option value="1">Hindi</option>
+            <option value="2">Gom</option>
+            <option value="3">Kannada</option>
+            <option value="4">Dogri</option>
+            <option value="5">Bodo</option>
+            <option value="6">Urdu</option>
+            <option value="7">Tamil</option>
+            <option value="8">Kashmiri</option>
+            <option value="9">Assamese</option>
+            <option value="10">Bengali</option>
+            <option value="11">Marathi</option>
+            <option value="12">Sindhi</option>
+            <option value="13">Maithili</option>
+            <option value="14">Punjabi</option>
+            <option value="15">Malayalam</option>
+            <option value="16">Manipuri</option>
+            <option value="17">Telugu</option>
+            <option value="18">Sanskrit</option>
+            <option value="19">Nepali</option>
+            <option value="20">Santali</option>
+            <option value="21">Gujarati</option>
+            <option value="22">Odia</option>
+            <option value="23">English</option>
+        </select>
         <button type="submit" style="background-color: #555; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 16px;">Submit & Process</button>
     </form>
     <div style="background-color: #333; padding: 10px; border-radius: 8px; color: white; font-family: Arial, sans-serif;">
@@ -210,3 +284,4 @@ function updateChatWithUrl() {
     </script>
 </body>
 </html>
+

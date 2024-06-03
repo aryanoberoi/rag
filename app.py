@@ -6,6 +6,7 @@ from docx import Document
 import docx2txt
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 import os
+import json
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 import google.generativeai as genai
 from langchain.vectorstores.faiss import FAISS
@@ -135,11 +136,14 @@ def index():
         files = request.files.getlist("files")
         url_input = request.form.get("url_input")
         raw_text = ""
-
+        session["input_language"] = int(request.form.get("input_language"))
+        
+        session["output_language"] = int(request.form.get("output_language"))
+        # Process files
         if files and files[0].filename != '':
             valid_files = all(f.filename.endswith(('.pdf', '.doc', '.docx', '.txt')) for f in files)
             if valid_files:
-                raw_text = get_text_from_files(files)
+                raw_text += get_text_from_files(files)
                 message = "Files successfully uploaded."
 
                 # Get file details for display
@@ -147,12 +151,16 @@ def index():
                     file_details.append({"name": file.filename})
             else:
                 message = "Please upload files in PDF, DOC, DOCX, or TXT format."
-        elif url_input:
-            raw_text = get_text_from_url(url_input)
-            message = "URL processed successfully. URl: " + url_input
+
+        # Process URL
+        if url_input:
+            url_text = get_text_from_url(url_input)
+            raw_text += " " + url_text  # Concatenate URL text with existing text
+             # Debug print to check what is being added
+            message = "Files and URL processed successfully. URL : "+ url_input
+
             session['url_input'] = url_input  # Store the URL in the session
-        else:
-            message = "No files uploaded or URL provided. Please upload documents or provide a URL."
+
 
         if raw_text:
             text_chunks = get_text_chunks(raw_text)
@@ -161,17 +169,30 @@ def index():
     chat_history = session.get('chat_history', [])
     return render_template('index.html', chat_history=chat_history, message=message, file_details=file_details, url_displayed=url_displayed)
 
+
 @app.route('/ask', methods=['POST'])
 def ask():
     user_query = request.json.get("question")
     if user_query and user_query.strip():
         session['chat_history'].append(HumanMessage(content=user_query))
         response = user_input(user_query, session['session_id'])
+
         res = response["output_text"]
         session['chat_history'].append(AIMessage(content=res))
+        print(request.form.get("input_language"))
+        
+
+        if int(session["output_language"]) != 23:
+            payload = {
+        "source_language": session["input_language"],
+        "content": res,
+        "target_language": session["output_language"]
+      }
+            res = json.loads(requests.post('http://127.0.0.1:8000/scaler/translate', json=payload).content)
+            res = res['translated_content']
+
         return jsonify({"answer": res, "url": session.get('url_input', '')})
     return jsonify({"error": "Invalid input"})
-
 
 if __name__ == "__main__":
     app.run(debug=True)
