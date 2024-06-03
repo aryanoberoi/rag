@@ -120,41 +120,40 @@ def user_input(user_question, usersession):
     )
     return response
 
-@app.route('/upload', methods=['GET', 'POST'])
+@app.route('/upload', methods=['POST'])
 def index():  # Retrieve the stored URL or set it to empty string
-
+    print("POST UPLOAD REQUEST: " + request)
     if 'session_id' not in session:
         session['session_id'] = os.urandom(24).hex()
         session['chat_history'] = [
             AIMessage(content="Hello! I'm a document assistant. Ask me anything about the documents you upload."),
         ]
 
-    if request.method == 'POST':
-        files = request.files.getlist("files")
-        url_input = request.form.get("url_input")
-        raw_text = ""
-        session["input_language"] = int(request.form.get("input_language"))
+    files = request.files.getlist("files")
+    url_input = request.form.get("url_input")
+    raw_text = ""
+    session["input_language"] = int(request.form.get("input_language"))
         
-        session["output_language"] = int(request.form.get("output_language"))
+    session["output_language"] = int(request.form.get("output_language"))
         # Process files
-        if files and files[0].filename != '':
-            valid_files = all(f.filename.endswith(('.pdf', '.doc', '.docx', '.txt')) for f in files)
-            if valid_files:
-                raw_text += get_text_from_files(files)
-                message = "Files successfully uploaded."
-            else:
-                message = "Please upload files in PDF, DOC, DOCX, or TXT format."
+    if files and files[0].filename != '':
+        valid_files = all(f.filename.endswith(('.pdf', '.doc', '.docx', '.txt')) for f in files)
+        if valid_files:
+            raw_text += get_text_from_files(files)
+            message = "Files successfully uploaded."
+        else:
+            message = "Please upload files in PDF, DOC, DOCX, or TXT format."
 
         # Process URL
-        if url_input:
-            url_text = get_text_from_url(url_input)
-            raw_text += " " + url_text  
+    if url_input:
+        url_text = get_text_from_url(url_input)
+        raw_text += " " + url_text  
             
 
 
-        if raw_text:
-            text_chunks = get_text_chunks(raw_text)
-            get_vector_store(text_chunks, session['session_id'])
+    if raw_text:
+        text_chunks = get_text_chunks(raw_text)
+        get_vector_store(text_chunks, session['session_id'])
 
     chat_history = session.get('chat_history', [])
     return jsonify({"chat_history": chat_history})
