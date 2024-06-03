@@ -18,7 +18,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.output_parsers import StrOutputParser
 import requests
 from bs4 import BeautifulSoup
-from werkzeug.utils import secure_filename
+from langchain_experimental.graph_transformers import LLMGraphTransformer
 
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'
@@ -120,11 +120,8 @@ def user_input(user_question, usersession):
     )
     return response
 
-@app.route('/', methods=['GET', 'POST'])
-def index():
-    message = None  # Initialize a message variable
-    file_details = []  # Initialize a list to store file details
-    url_displayed = session.get('url_input', '')  # Retrieve the stored URL or set it to empty string
+@app.route('/upload', methods=['GET', 'POST'])
+def index():  # Retrieve the stored URL or set it to empty string
 
     if 'session_id' not in session:
         session['session_id'] = os.urandom(24).hex()
@@ -145,21 +142,14 @@ def index():
             if valid_files:
                 raw_text += get_text_from_files(files)
                 message = "Files successfully uploaded."
-
-                # Get file details for display
-                for file in files:
-                    file_details.append({"name": file.filename})
             else:
                 message = "Please upload files in PDF, DOC, DOCX, or TXT format."
 
         # Process URL
         if url_input:
             url_text = get_text_from_url(url_input)
-            raw_text += " " + url_text  # Concatenate URL text with existing text
-             # Debug print to check what is being added
-            message = "Files and URL processed successfully. URL : "+ url_input
-
-            session['url_input'] = url_input  # Store the URL in the session
+            raw_text += " " + url_text  
+            
 
 
         if raw_text:
@@ -167,8 +157,7 @@ def index():
             get_vector_store(text_chunks, session['session_id'])
 
     chat_history = session.get('chat_history', [])
-    return render_template('index.html', chat_history=chat_history, message=message, file_details=file_details, url_displayed=url_displayed)
-
+    return jsonify({"chat_history": chat_history})
 
 @app.route('/ask', methods=['POST'])
 def ask():
@@ -179,7 +168,7 @@ def ask():
 
         res = response["output_text"]
         session['chat_history'].append(AIMessage(content=res))
-        print(request.form.get("input_language"))
+        
         
 
         if int(session["output_language"]) != 23:
