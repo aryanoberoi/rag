@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 import requests
-
+#python -m uvicorn custom_api:app --reload
 app = FastAPI()
 
 class TranslationRequest(BaseModel):

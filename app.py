@@ -18,7 +18,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.output_parsers import StrOutputParser
 import requests
 from bs4 import BeautifulSoup
-from langchain_experimental.graph_transformers import LLMGraphTransformer
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'
@@ -120,43 +120,55 @@ def user_input(user_question, usersession):
     )
     return response
 
-@app.route('/upload', methods=['POST'])
-def index():  # Retrieve the stored URL or set it to empty string
-    print("POST UPLOAD REQUEST: " + request)
+@app.route('/', methods=['GET', 'POST'])
+def index():
+    message = None  # Initialize a message variable
+    file_details = []  # Initialize a list to store file details
+    url_displayed = session.get('url_input', '')  # Retrieve the stored URL or set it to empty string
+
     if 'session_id' not in session:
         session['session_id'] = os.urandom(24).hex()
         session['chat_history'] = [
             AIMessage(content="Hello! I'm a document assistant. Ask me anything about the documents you upload."),
         ]
 
-    files = request.files.getlist("files")
-    url_input = request.form.get("url_input")
-    raw_text = ""
-    session["input_language"] = int(request.form.get("input_language"))
+    if request.method == 'POST':
+        files = request.files.getlist("files")
+        url_input = request.form.get("url_input")
+        raw_text = ""
+        session["input_language"] = int(request.form.get("input_language"))
         
-    session["output_language"] = int(request.form.get("output_language"))
+        session["output_language"] = int(request.form.get("output_language"))
         # Process files
-    if files and files[0].filename != '':
-        valid_files = all(f.filename.endswith(('.pdf', '.doc', '.docx', '.txt')) for f in files)
-        if valid_files:
-            raw_text += get_text_from_files(files)
-            message = "Files successfully uploaded."
-        else:
-            message = "Please upload files in PDF, DOC, DOCX, or TXT format."
+        if files and files[0].filename != '':
+            valid_files = all(f.filename.endswith(('.pdf', '.doc', '.docx', '.txt')) for f in files)
+            if valid_files:
+                raw_text += get_text_from_files(files)
+                message = "Files successfully uploaded."
+
+                # Get file details for display
+                for file in files:
+                    file_details.append({"name": file.filename})
+            else:
+                message = "Please upload files in PDF, DOC, DOCX, or TXT format."
 
         # Process URL
-    if url_input:
-        url_text = get_text_from_url(url_input)
-        raw_text += " " + url_text  
-            
+        if url_input:
+            url_text = get_text_from_url(url_input)
+            raw_text += " " + url_text  # Concatenate URL text with existing text
+             # Debug print to check what is being added
+            message = "Files and URL processed successfully. URL : "+ url_input
+
+            session['url_input'] = url_input  # Store the URL in the session
 
 
-    if raw_text:
-        text_chunks = get_text_chunks(raw_text)
-        get_vector_store(text_chunks, session['session_id'])
+        if raw_text:
+            text_chunks = get_text_chunks(raw_text)
+            get_vector_store(text_chunks, session['session_id'])
 
     chat_history = session.get('chat_history', [])
-    return jsonify({"chat_history": chat_history})
+    return render_template('index.html', chat_history=chat_history, message=message, file_details=file_details, url_displayed=url_displayed)
+
 
 @app.route('/ask', methods=['POST'])
 def ask():
@@ -167,7 +179,7 @@ def ask():
 
         res = response["output_text"]
         session['chat_history'].append(AIMessage(content=res))
-        
+        print(request.form.get("input_language"))
         
 
         if int(session["output_language"]) != 23:

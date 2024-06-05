@@ -95,16 +95,14 @@
         <h1 class="app-name">Chat with Documents or URL</h1>
     </header>
 
-    <form method="post" enctype="multipart/form-data" style="background-color: #333; padding: 20px; border-radius: 8px; color: white; font-family: Arial, sans-serif;">
-        <label for="files" style="display: block; margin-bottom: 10px;">Upload your PDF, DOC, DOCX, or TXT Files:</label>
-        <input type="file" id="files" name="files" multiple style="display: block; width: 95%; margin-bottom: 20px; color: #ccc; background-color: #222; border: none; padding: 8px; border-radius: 4px;">
-        <div id="fileList">
-            <!-- Uploaded file names and information will be displayed here -->
-        </div>
-        <label for="url_input" style="display: block; margin-bottom: 10px;">Or enter a URL to process:</label>
-        <input type="text" id="url_input" name="url_input" style="display: block; width: 95%; margin-bottom: 20px; color: #ccc; background-color: #222; border: none; padding: 8px; border-radius: 4px;">
-        <label for="input_language" style="display: block; margin-bottom: 10px;">Select Input Language:</label>
-        <select id="input_language" name="input_language" style="display: block; width: 95%; margin-bottom: 20px; color: #ccc; background-color: #222; border: none; padding: 8px; border-radius: 4px;">
+    <form method="post" enctype="multipart/form-data">
+        <label for="files">Upload your PDF, DOC, DOCX, or TXT Files:</label>
+        <input type="file" id="files" name="files" multiple>
+        <div id="fileList"></div>
+        <label for="url_input">Or enter a URL to process:</label>
+        <input type="text" id="url_input" name="url_input">
+        <label for="input_language">Select Input Language:</label>
+        <select id="input_language" name="input_language">
             <option value="1">Hindi</option>
             <option value="2">Gom</option>
             <option value="3">Kannada</option>
@@ -130,8 +128,8 @@
             <option value="23">English</option>
         </select>
 
-        <label for="output_language" style="display: block; margin-bottom: 10px;">Select Output Language:</label>
-        <select id="output_language" name="output_language" style="display: block; width: 95%; margin-bottom: 20px; color: #ccc; background-color: #222; border: none; padding: 8px; border-radius: 4px;">
+        <label for="output_language">Select Output Language:</label>
+        <select id="output_language" name="output_language">
             <option value="1">Hindi</option>
             <option value="2">Gom</option>
             <option value="3">Kannada</option>
@@ -195,7 +193,8 @@
 							<form id="messageArea" class="input-group">
                                 <input type="text" id="text" name="msg" placeholder="Type your message..." autocomplete="off" class="form-control type_msg" required/>
 								<div class="input-group-append">
-									<button type="submit" id="send" class="input-group-text send_btn"><i class="fas fa-location-arrow"></i></button>
+                                    <button type="submit" id="send" class="input-group-text send_btn"><i class="fas fa-location-arrow"></i></button>
+                                    <button type="button" id="record" class="input-group-text record_btn"><i class="fas fa-microphone"></i></button>
 								</div>
 							</form>
 						</div>
@@ -203,7 +202,6 @@
 				</div>
 			</div>
 		</div>
-
 
     <script>
         const fileInput = document.getElementById('files');
@@ -223,9 +221,8 @@
         }
     </script>
 
-
     <script>
-            document.getElementById('files').addEventListener('change', function() {
+        document.getElementById('files').addEventListener('change', function() {
             const fileInfo = document.getElementById('fileInfo');
             const files = this.files;
             if (files.length > 0) {
@@ -236,52 +233,94 @@
                 fileInfo.style.display = 'none';
             }
         });
+
         $(document).ready(function() {
-    $("#messageArea").on("submit", function(event) {
-        event.preventDefault(); // Prevent the default form submission
-        const date = new Date();
-        const hour = date.getHours();
-        const minute = date.getMinutes();
-        const str_time = hour + ":" + minute;
-        var rawText = $("#text").val();
+            $("#messageArea").on("submit", function(event) {
+                event.preventDefault(); // Prevent the default form submission
+                var rawText = $("#text").val();
 
-        var userHtml = '<div class="d-flex justify-content-end mb-4"><div class="msg_cotainer_send">' + rawText + '<span class="msg_time_send">' + str_time + '</span></div><div class="img_cont_msg"><img src="https://i.ibb.co/d5b84Xw/Untitled-design.png" class="rounded-circle user_img_msg"></div></div>';
-        
-        $("#text").val("");
-        $("#messageFormeight").append(userHtml);
-        scrollToBottom();
+                var userHtml = '<div class="d-flex justify-content-end mb-4"><div class="msg_cotainer_send">' + rawText + '<span class="msg_time_send">' +  '</span><button class="play_btn"><i class="fas fa-play"></i></button></div><div class="img_cont_msg"><img src="https://i.ibb.co/d5b84Xw/Untitled-design.png" class="rounded-circle user_img_msg"></div></div>';
+                
+                $("#text").val("");
+                $("#messageFormeight").append(userHtml);
+                scrollToBottom();
 
-        $.ajax({
-            method: "POST",
-            url: "/ask",
-            contentType: "application/json",
-            data: JSON.stringify({ question: rawText }),
-            success: function(data) {
-                if (data.answer) {
-                    var botHtml = '<div class="d-flex justify-content-start mb-4"><div class="img_cont_msg"><img src="' + "{{ url_for('static', filename='cr.jpg')}}" + '" class="rounded-circle user_img_msg"></div><div class="msg_cotainer">' + data.answer + '<span class="msg_time">' + str_time + '</span></div></div>';
-                    $("#messageFormeight").append($.parseHTML(botHtml));
-                    scrollToBottom();
-                }
-            },
-            error: function() {
-                console.error("Error fetching response from /ask endpoint.");
+                $.ajax({
+                    method: "POST",
+                    url: "/ask",
+                    contentType: "application/json",
+                    data: JSON.stringify({ question: rawText }),
+                    success: function(data) {
+                        if (data.answer) {
+                            var botHtml = '<div class="d-flex justify-content-start mb-4"><div class="img_cont_msg"><img src="' + "{{ url_for('static', filename='cr.jpg')}}" + '" class="rounded-circle user_img_msg"></div><div class="msg_cotainer">' + data.answer + '<span class="msg_time">' + str_time + '</span><button class="play_btn"><i class="fas fa-play"></i></button></div></div>';
+                            $("#messageFormeight").append($.parseHTML(botHtml));
+                            scrollToBottom();
+                        }
+                    },
+                    error: function() {
+                        console.error("Error fetching response from /ask endpoint.");
+                    }
+                });
+            });
+
+            function scrollToBottom() {
+                $('.msg_card_body').scrollTop($('.msg_card_body')[0].scrollHeight);
             }
+
+            const recordButton = document.getElementById('record');
+            const textInput = document.getElementById('text');
+            let isRecording = false;
+            let recognition;
+
+            if ('webkitSpeechRecognition' in window) {
+                recognition = new webkitSpeechRecognition();
+                recognition.continuous = true;
+                recognition.interimResults = false;
+                recognition.lang = 'en-US';
+
+                recognition.onstart = function() {
+                    isRecording = true;
+                    recordButton.innerHTML = '<i class="fas fa-stop"></i>';
+                };
+
+                recognition.onresult = function(event) {
+                    const transcript = event.results[0][0].transcript;
+                    textInput.value = transcript;
+                };
+
+                recognition.onerror = function(event) {
+                    console.error("Speech recognition error", event);
+                };
+
+                recognition.onend = function() {
+                    if (isRecording) {
+                        recognition.start(); // Restart recognition to keep it running
+                    } else {
+                        recordButton.innerHTML = '<i class="fas fa-microphone"></i>';
+                    }
+                };
+            } else {
+                console.warn("Speech recognition not supported in this browser.");
+                recordButton.disabled = true;
+            }
+
+            recordButton.addEventListener('click', function() {
+                if (isRecording) {
+                    isRecording = false;
+                    recognition.stop();
+                } else {
+                    isRecording = true;
+                    recognition.start();
+                }
+            });
+
+            // Text-to-Speech functionality
+            $(document).on('click', '.play_btn', function() {
+                const message = $(this).closest('.msg_cotainer_send, .msg_cotainer').text();
+                const utterance = new SpeechSynthesisUtterance(message);
+                speechSynthesis.speak(utterance);
+            });
         });
-    });
-
-    function scrollToBottom() {
-        $('.msg_card_body').scrollTop($('.msg_card_body')[0].scrollHeight);
-    }
-});
-function updateChatWithUrl() {
-    var url = '{{ url_displayed }}';  // This will get the URL from the backend
-    if (url) {
-        var urlHtml = '<div class="url-display">URL: ' + url + '</div>';
-        $("#messageFormeight").prepend(urlHtml); // Add the URL to the top of the chat
-    }
-}
-
     </script>
 </body>
 </html>
-
