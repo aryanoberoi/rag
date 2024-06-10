@@ -19,11 +19,61 @@ from langchain_core.output_parsers import StrOutputParser
 import requests
 from bs4 import BeautifulSoup
 from werkzeug.utils import secure_filename
+import pandas as pd
+import spacy
+import requests
+from bs4 import BeautifulSoup
+import PyPDF2
+from neo4j import GraphDatabase
+from langchain_core.runnables import (
+    RunnableBranch,
+    RunnableLambda,
+    RunnableParallel,
+    RunnablePassthrough,
+)
+from langchain_core.prompts import ChatPromptTemplate
+from langchain.graphs import Neo4jGraph
+from langchain_core.prompts.prompt import PromptTemplate
+from langchain_core.pydantic_v1 import BaseModel, Field
+from typing import Tuple, List, Optional
+from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.output_parsers import StrOutputParser
+import os
+from langchain_community.graphs import Neo4jGraph
+from langchain_community.llms import Ollama
+from langchain.text_splitter import TokenTextSplitter
+from langchain_experimental.graph_transformers import LLMGraphTransformer
+from neo4j import GraphDatabase
+from langchain_community.vectorstores import Neo4jVector
+
+from langchain_community.vectorstores.neo4j_vector import remove_lucene_chars
+from langchain_core.runnables import ConfigurableField, RunnableParallel, RunnablePassthrough
+from langchain.docstore.document import Document 
+'''part of the LangChain library and is used to represent a piece of text or document data along with its metadata. 
+It is a common data structure used throughout the LangChain library for storing and processing text data.
+In your code, you are using the Document class to create new Document objects from the preprocessed text data. 
+Specifically, you are creating a dictionary with the page_content (the actual text content) and metadata (additional information about the text, such as the source), 
+and then creating a Document object using that dictionary.'''
+from langchain.embeddings import SentenceTransformerEmbeddings
+from langchain.embeddings import HuggingFaceEmbeddings
+from py2neo import Graph
+from langchain_community.vectorstores import Neo4jVector
+from langchain.embeddings import OpenAIEmbeddings
+import os
+from langchain_experimental.llms.ollama_functions import OllamaFunctions
+from langchain_community.llms import Ollama
+from langchain_community.chat_models import ChatOllama
+from langchain.prompts import PromptTemplate
+from langchain.output_parsers import StructuredOutputParser
+from pydantic import BaseModel
+from typing import List
 
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'
 app.config['SESSION_TYPE'] = 'filesystem'
 Session(app)
+URI = "bolt://localhost:7687"
+graph = Neo4jGraph(url=URI, username="neo4j", password="password")
 
 # Ensure the environment variables are loaded
 load_dotenv()
@@ -86,38 +136,73 @@ def get_text_from_url(url):
         return f"Error fetching the URL: {e}"
 
 def get_text_chunks(text):
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=1000)
-    chunks = text_splitter.split_text(text)
-    return chunks
+    
+    text_splitter = TokenTextSplitter(chunk_size=512, chunk_overlap=24)
+    documents = text_splitter.split_text(text[:3])
+    
+    return documents
 # take foldername input 
 def get_vector_store(text_chunks, usersession):
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-    vector_store = FAISS.from_texts(text_chunks, embedding=embeddings)
-    vector_store.save_local(usersession)
+
+# Preprocess the documents to convert lists to tuples
+
+    preprocessed_documents = []
+    for doc in text_chunks:
+        data = {
+        "page_content": doc.page_content,
+        "metadata": {
+            "source": tuple(doc.metadata["source"]) if isinstance(doc.metadata["source"], list) else doc.metadata["source"]
+        }
+    }
+        preprocessed_documents.append(Document(**data))
+    llm = OllamaFunctions(model="llama3")
+    llm_transformer = LLMGraphTransformer(llm=llm)
+    graph_documents = llm_transformer.convert_to_graph_documents(text_chunks)
+    graph.add_graph_documents(
+    graph_documents,
+    baseEntityLabel=True,
+    include_source=True
+    )
+
+    from langchain_community.embeddings import OllamaEmbeddings
+
+
+    embeddings = OllamaEmbeddings(model="mxbai-embed-large")
+    session['vector_index'] = Neo4jVector.from_existing_graph(
+    embeddings,
+    url="bolt://localhost:7687",
+    username='neo4j',
+    password='password',
+    search_type="hybrid",
+    node_label="Document",
+    text_node_properties=["text"],
+    embedding_node_property="embedding"
+)
+# Retriever
+    from py2neo import                        Graph
+    graph=Graph('bolt://localhost:7687', name='neo4j')
+
+    graph.run(
+    "CREATE FULLTEXT INDEX entity IF NOT EXISTS FOR (e:__Entity__) ON EACH [e.id]"
+)
+
 
 def get_conversational_chain():
-    prompt_template = """
-    Answer the question as detailed as possible. Please ensure that the answer is detailed and accurate based on the provided context. Review the chat history carefully to provide all necessary details and avoid incorrect information. Treat synonyms or similar words as equivalent within the context. For example, if a question refers to "modules" or "units" instead of "chapters" or "doc" instead of "document" consider them the same. If the question is not related to the provided context, simply respond with "out of context."
+    from langchain_community.chat_models import ChatOllama
 
+    llm = ChatOllama(model="llama3", format="json", temperature=0)
+    from langchain.chains import RetrievalQA
 
-    Context:\n{context}?\n
-    Question:\n{question}\n
-    Answer:
-    """
-    model = ChatGoogleGenerativeAI(model="gemini-pro")
-    prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
-    chain = load_qa_chain(model, chain_type="stuff", prompt=prompt)
-    return chain
+    session['vector_qa'] = RetrievalQA.from_chain_type(
+    llm,
+    chain_type="stuff",
+    retriever=session['vector_index'].as_retriever()
+)
+  
+    return session['vector_qa']
 
-def user_input(user_question, usersession):
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-    new_db = FAISS.load_local(usersession, embeddings, allow_dangerous_deserialization=True)
-    docs = new_db.similarity_search(user_question)
-    chain = get_conversational_chain()
-
-    response = chain(
-        {"input_documents": docs, "question": user_question}, StrOutputParser()
-    )
+def user_input(user_question):
+    response = session['vector_qa'].run(user_question)
     return response
 
 @app.route('/', methods=['GET', 'POST'])
