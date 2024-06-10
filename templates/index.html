@@ -235,92 +235,95 @@
         });
 
         $(document).ready(function() {
-            $("#messageArea").on("submit", function(event) {
-                event.preventDefault(); // Prevent the default form submission
-                var rawText = $("#text").val();
+    $("#messageArea").on("submit", function(event) {
+        event.preventDefault(); // Prevent the default form submission
+        var rawText = $("#text").val();
 
-                var userHtml = '<div class="d-flex justify-content-end mb-4"><div class="msg_cotainer_send">' + rawText + '<span class="msg_time_send">' +  '</span><button class="play_btn"><i class="fas fa-play"></i></button></div><div class="img_cont_msg"><img src="https://i.ibb.co/d5b84Xw/Untitled-design.png" class="rounded-circle user_img_msg"></div></div>';
-                
-                $("#text").val("");
-                $("#messageFormeight").append(userHtml);
-                scrollToBottom();
+        var userHtml = '<div class="d-flex justify-content-end mb-4"><div class="msg_cotainer_send">' + rawText + '<span class="msg_time_send">' + '</span><button class="play_btn"><i class="fas fa-play"></i></button></div><div class="img_cont_msg"><img src="https://i.ibb.co/d5b84Xw/Untitled-design.png" class="rounded-circle user_img_msg"></div></div>';
+        
+        $("#text").val("");
+        $("#messageFormeight").append(userHtml);
+        scrollToBottom();
 
-                $.ajax({
-                    method: "POST",
-                    url: "/ask",
-                    contentType: "application/json",
-                    data: JSON.stringify({ question: rawText }),
-                    success: function(data) {
-                        if (data.answer) {
-                            var botHtml = '<div class="d-flex justify-content-start mb-4"><div class="img_cont_msg"><img src="' + "{{ url_for('static', filename='cr.jpg')}}" + '" class="rounded-circle user_img_msg"></div><div class="msg_cotainer">' + data.answer + '<span class="msg_time">' + str_time + '</span><button class="play_btn"><i class="fas fa-play"></i></button></div></div>';
-                            $("#messageFormeight").append($.parseHTML(botHtml));
-                            scrollToBottom();
-                        }
-                    },
-                    error: function() {
-                        console.error("Error fetching response from /ask endpoint.");
-                    }
-                });
-            });
-
-            function scrollToBottom() {
-                $('.msg_card_body').scrollTop($('.msg_card_body')[0].scrollHeight);
-            }
-
-            const recordButton = document.getElementById('record');
-            const textInput = document.getElementById('text');
-            let isRecording = false;
-            let recognition;
-
-            if ('webkitSpeechRecognition' in window) {
-                recognition = new webkitSpeechRecognition();
-                recognition.continuous = true;
-                recognition.interimResults = false;
-                recognition.lang = 'en-US';
-
-                recognition.onstart = function() {
-                    isRecording = true;
-                    recordButton.innerHTML = '<i class="fas fa-stop"></i>';
-                };
-
-                recognition.onresult = function(event) {
-                    const transcript = event.results[0][0].transcript;
-                    textInput.value = transcript;
-                };
-
-                recognition.onerror = function(event) {
-                    console.error("Speech recognition error", event);
-                };
-
-                recognition.onend = function() {
-                    if (isRecording) {
-                        recognition.start(); // Restart recognition to keep it running
-                    } else {
-                        recordButton.innerHTML = '<i class="fas fa-microphone"></i>';
-                    }
-                };
-            } else {
-                console.warn("Speech recognition not supported in this browser.");
-                recordButton.disabled = true;
-            }
-
-            recordButton.addEventListener('click', function() {
-                if (isRecording) {
-                    isRecording = false;
-                    recognition.stop();
-                } else {
-                    isRecording = true;
-                    recognition.start();
+        $.ajax({
+            method: "POST",
+            url: "/ask",
+            contentType: "application/json",
+            data: JSON.stringify({ question: rawText }),
+            success: function(data) {
+                if (data.answer) {
+                    var botHtml = '<div class="d-flex justify-content-start mb-4"><div class="img_cont_msg"><img src="' + "{{ url_for('static', filename='cr.jpg')}}" + '" class="rounded-circle user_img_msg"></div><div class="msg_cotainer">' + data.answer + '<span class="msg_time">' + '</span><button class="play_btn"><i class="fas fa-play"></i></button></div></div>';
+                    $("#messageFormeight").append($.parseHTML(botHtml));
+                    scrollToBottom();
+                } else if (data.error) {
+                    console.error("Error from server: " + data.error);
                 }
-            });
-
-            // Text-to-Speech functionality
-            $(document).on('click', '.play_btn', function() {
-                const message = $(this).closest('.msg_cotainer_send, .msg_cotainer').text();
-                const utterance = new SpeechSynthesisUtterance(message);
-                speechSynthesis.speak(utterance);
-            });
+            },
+            error: function() {
+                console.error("Error fetching response from /ask endpoint.");
+            }
         });
+    });
+
+    function scrollToBottom() {
+        $('.msg_card_body').scrollTop($('.msg_card_body')[0].scrollHeight);
+    }
+
+    const recordButton = document.getElementById('record');
+    const textInput = document.getElementById('text');
+    let isRecording = false;
+    let recognition;
+
+    if ('webkitSpeechRecognition' in window) {
+        recognition = new webkitSpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = false;
+        recognition.lang = 'en-US';
+
+        recognition.onstart = function() {
+            isRecording = true;
+            recordButton.innerHTML = '<i class="fas fa-stop"></i>';
+        };
+
+        recognition.onresult = function(event) {
+            const transcript = event.results[0][0].transcript;
+            textInput.value = transcript;
+        };
+
+        recognition.onerror = function(event) {
+            console.error("Speech recognition error", event);
+        };
+
+        recognition.onend = function() {
+            if (isRecording) {
+                recognition.start(); // Restart recognition to keep it running
+            } else {
+                recordButton.innerHTML = '<i class="fas fa-microphone"></i>';
+            }
+        };
+    } else {
+        console.warn("Speech recognition not supported in this browser.");
+        recordButton.disabled = true;
+    }
+
+    recordButton.addEventListener('click', function() {
+        if (isRecording) {
+            isRecording = false;
+            recognition.stop();
+        } else {
+            isRecording = true;
+            recognition.start();
+        }
+    });
+
+    // Text-to-Speech functionality
+    $(document).on('click', '.play_btn', function() {
+        const message = $(this).closest('.msg_cotainer_send, .msg_cotainer').text();
+        const utterance = new SpeechSynthesisUtterance(message);
+        speechSynthesis.speak(utterance);
+    });
+});
+
     </script>
 </body>
 </html>
