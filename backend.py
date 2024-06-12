@@ -26,13 +26,12 @@ from langchain_experimental.graph_transformers import LLMGraphTransformer
 import logging
 from dotenv import load_dotenv
 import os
+from langchain.chains.qa_with_sources.loading import load_qa_with_sources_chain
 from langchain_community.document_loaders import UnstructuredURLLoader
 
-from langchain.chains.qa_with_sources.loading import load_qa_with_sources_chain
 
 from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_community.document_loaders import TextLoader
-from langchain_community.document_loaders import Docx2txtLoader
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s')
 
@@ -42,7 +41,7 @@ app.secret_key = 'supersecretkey'
 app.config['SESSION_TYPE'] = 'filesystem'
 Session(app)
 
-
+session["docs"]=[]
 
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 # Function to handle asyncio event loop
@@ -61,9 +60,11 @@ def get_text_from_doc(doc_file):
     return "\n".join([paragraph.text for paragraph in document.paragraphs])
 
 def get_text_from_docx(docx_file):
-    loader = Docx2txtLoader(docx_file)
-    data = loader.load()
-    return data
+    # Save the uploaded file to a temporary location to be processed by docx2txt
+    temp_file_path = "temp.docx"
+    with open(temp_file_path, "wb") as f:
+        f.write(docx_file.read())
+    return docx2txt.process(temp_file_path)
 
 def get_text_from_txt(txt_file):
     loader = TextLoader(txt_file)
@@ -74,20 +75,22 @@ def get_text_from_pdf(pdf_file):
     data = loader.load()
     return data
 
+
 def get_text_from_files(files):
     text = ""
     for file in files:
         if file.filename.endswith(".pdf"):
-            session["docs"].append(get_text_from_pdf(file))
+            session["docs"].append( get_text_from_pdf(file))
         elif file.filename.endswith(".doc"):
-            session["docs"].append(get_text_from_doc(file))
+            session["docs"].append( get_text_from_doc(file))
         elif file.filename.endswith(".docx"):
             session["docs"].append( get_text_from_docx(file))
         elif file.filename.endswith(".txt"):
-            session["docs"].append(get_text_from_txt(file))
+            session["docs"].append( get_text_from_txt(file))
         else:
             return f"Unsupported file type: {file.filename}"
     return text
+
 
 def get_text_from_urls(urls):
     texts = []
@@ -99,6 +102,7 @@ def get_text_from_urls(urls):
         except Exception as e:
             texts.append(f"Error fetching the URL: {e}")
     return texts
+
 
 def get_text_chunks(text):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=1000)
@@ -112,32 +116,25 @@ def get_vector_store(text_chunks, usersession):
 
 def get_conversational_chain():
     prompt_template = """
-    You are an expert document summarizer assistant. Your task is to provide a detailed and accurate summary of the relevant information from the provided context to answer the given question.
+    Answer the question as detailed as possible. Please ensure that the answer is detailed and accurate based on the provided context. Review the chat history carefully to provide all necessary details and avoid incorrect information. Treat synonyms or similar words as equivalent within the context. For example, if a question refers to "modules" or "units" instead of "chapters" or "doc" instead of "document" consider them the same. If the question is not related to the provided context, simply respond with "out of context."
 
-    When summarizing, please follow these guidelines:
-    
-    1. Carefully review the full context and question to understand the information needed.
-    2. Identify the key points and details that are relevant to answering the question.
-    3. If the question cannot be answered based on the provided context, simply state "The given context does not contain enough information to answer the question."
 
-    Context: {context}
-
-    Question: {question}
-
+    Context:\n{context}?\n
+    Question:\n{question}\n
+    Answer:
     """
     model = ChatGoogleGenerativeAI(model="gemini-pro")
+    
     qa  =   load_qa_with_sources_chain(llm=model, chain_type="map_reduce", retreiver=session["vector_store"].as_retriever())
     return qa
 
 def user_input(user_question, usersession):
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
     new_db = FAISS.load_local(usersession, embeddings, allow_dangerous_deserialization=True)
-    docs = new_db.similarity_search(user_question)
+    docs = new_db.similarity_search(user_question=user_question)
     chain = get_conversational_chain()
 
-    response = chain(
-        {"input_documents": docs, "question": user_question}, StrOutputParser()
-    )
+    response = chain({"question" : user_question, "input_documents": docs}, StrOutputParser())
     return response
 
 @app.route('/upload', methods=['POST', 'OPTIONS'])
