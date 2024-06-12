@@ -26,13 +26,6 @@ from langchain_experimental.graph_transformers import LLMGraphTransformer
 import logging
 from dotenv import load_dotenv
 import os
-from langchain_community.document_loaders import UnstructuredURLLoader
-
-from langchain.chains.qa_with_sources.loading import load_qa_with_sources_chain
-
-from langchain_community.document_loaders import PyMuPDFLoader
-from langchain_community.document_loaders import TextLoader
-from langchain_community.document_loaders import Docx2txtLoader
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s')
 
@@ -61,30 +54,33 @@ def get_text_from_doc(doc_file):
     return "\n".join([paragraph.text for paragraph in document.paragraphs])
 
 def get_text_from_docx(docx_file):
-    loader = Docx2txtLoader(docx_file)
-    data = loader.load()
-    return data
+    # Save the uploaded file to a temporary location to be processed by docx2txt
+    temp_file_path = "temp.docx"
+    with open(temp_file_path, "wb") as f:
+        f.write(docx_file.read())
+    return docx2txt.process(temp_file_path)
 
 def get_text_from_txt(txt_file):
-    loader = TextLoader(txt_file)
-    return loader.load()
+    return txt_file.read().decode("utf-8")
 
 def get_text_from_pdf(pdf_file):
-    loader = PyMuPDFLoader(pdf_file)
-    data = loader.load()
-    return data
+    text = ""
+    pdf_reader = PdfReader(pdf_file)
+    for page in pdf_reader.pages:
+        text += page.extract_text()
+    return text
 
 def get_text_from_files(files):
     text = ""
     for file in files:
         if file.filename.endswith(".pdf"):
-            session["docs"].append(get_text_from_pdf(file))
+            text += get_text_from_pdf(file)
         elif file.filename.endswith(".doc"):
-            session["docs"].append(get_text_from_doc(file))
+            text += get_text_from_doc(file)
         elif file.filename.endswith(".docx"):
-            session["docs"].append( get_text_from_docx(file))
+            text += get_text_from_docx(file)
         elif file.filename.endswith(".txt"):
-            session["docs"].append(get_text_from_txt(file))
+            text += get_text_from_txt(file)
         else:
             return f"Unsupported file type: {file.filename}"
     return text
@@ -93,9 +89,10 @@ def get_text_from_urls(urls):
     texts = []
     for url in urls:
         try:
-            loader = UnstructuredURLLoader(urls=url)
-            data = loader.load()
-            session["docs"].append(data)
+            response = requests.get(url)
+            soup = BeautifulSoup(response.content, "html.parser")
+            text = ' '.join(p.get_text() for p in soup.find_all('p'))
+            texts.append(text)
         except Exception as e:
             texts.append(f"Error fetching the URL: {e}")
     return texts
@@ -107,27 +104,22 @@ def get_text_chunks(text):
 # take foldername input
 def get_vector_store(text_chunks, usersession):
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-    session["vector_store"] = FAISS.from_documents([doc for doc in session["docs"] if doc.metadata["category"] != "Title"], embeddings=embeddings)
+    session["vector_store"] = FAISS.from_texts(text_chunks, embedding=embeddings)
     session["vector_store"].save_local(usersession)
 
 def get_conversational_chain():
     prompt_template = """
-    You are an expert document summarizer assistant. Your task is to provide a detailed and accurate summary of the relevant information from the provided context to answer the given question.
+    Answer the question as detailed as possible. Please ensure that the answer is detailed and accurate based on the provided context. Review the chat history carefully to provide all necessary details and avoid incorrect information. Treat synonyms or similar words as equivalent within the context. For example, if a question refers to "modules" or "units" instead of "chapters" or "doc" instead of "document" consider them the same. If the question is not related to the provided context, simply respond with "out of context."
 
-    When summarizing, please follow these guidelines:
-    
-    1. Carefully review the full context and question to understand the information needed.
-    2. Identify the key points and details that are relevant to answering the question.
-    3. If the question cannot be answered based on the provided context, simply state "The given context does not contain enough information to answer the question."
 
-    Context: {context}
-
-    Question: {question}
-
+    Context:\n{context}?\n
+    Question:\n{question}\n
+    Answer:
     """
     model = ChatGoogleGenerativeAI(model="gemini-pro")
-    qa  =   load_qa_with_sources_chain(llm=model, chain_type="map_reduce", retreiver=session["vector_store"].as_retriever())
-    return qa
+    prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
+    chain = load_qa_chain(model, chain_type="map_reduce", prompt=prompt)
+    return chain
 
 def user_input(user_question, usersession):
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
